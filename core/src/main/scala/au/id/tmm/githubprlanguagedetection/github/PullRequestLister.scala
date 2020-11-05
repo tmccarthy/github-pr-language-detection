@@ -73,7 +73,11 @@ class PullRequestLister(
     )
 
   private def parseCommit(apiCommit: GHCommitPointer): ExceptionOr[Commit] =
-    requireNonNull(apiCommit.getSha).flatMap(_.parseHex).map(Commit.apply)
+    for {
+      sha <- requireNonNull(apiCommit.getSha).flatMap(_.parseHex)
+      ref = Option(apiCommit.getRef)
+    } yield Commit(ref, sha)
+
 
   private def requireNonNull[A](a: A): ExceptionOr[A] =
     if (a == null) Left(GenericException("Encountered null")) else Right(a)
