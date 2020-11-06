@@ -46,6 +46,7 @@ lazy val cli = project
     libraryDependencies += "au.id.tmm.tmm-scala-plotly"      %% "tmm-scala-plotly-core"       % "0.0.2",
     libraryDependencies += "io.circe"                        %% "circe-parser"                % "0.14.0-M1",
     libraryDependencies += "co.fs2"                          %% "fs2-core"                    % "2.4.4",
+    libraryDependencies += "com.github.tototoshi"            %% "scala-csv"                   % "1.3.6",
   )
 
 addCommandAlias("check", ";+test;scalafmtCheckAll")

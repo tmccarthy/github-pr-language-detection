@@ -15,7 +15,7 @@ import com.github.ghik.silencer.silent
 import org.eclipse.jgit.api.{Git => JGit}
 
 @silent("never used")
-object Main extends IOApp {
+object Testing extends IOApp {
 
   private val publicGitHubConfig: IO[GitHubConfiguration] =
     for {

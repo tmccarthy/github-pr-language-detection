@@ -1,6 +1,7 @@
 package au.id.tmm.githubprlanguagedetection.cli
 
 import java.nio.file.Paths
+import java.time.Duration
 
 import au.id.tmm.collections.syntax.toIterableOps
 import au.id.tmm.githubprlanguagedetection.cli.CliConfig.PerformanceConfig
@@ -9,15 +10,14 @@ import au.id.tmm.githubprlanguagedetection.github.PullRequestLister
 import au.id.tmm.githubprlanguagedetection.github.model.{PullRequest, RepositoryName}
 import au.id.tmm.githubprlanguagedetection.linguist.LanguageDetector
 import au.id.tmm.githubprlanguagedetection.linguist.model.DetectedLanguages
-import au.id.tmm.utilities.errors.ExceptionOr
+import au.id.tmm.intime.std.syntax.all._
+import au.id.tmm.utilities.codec.binarycodecs.HexByteArrayOps
+import au.id.tmm.utilities.errors.{ExceptionOr, GenericException}
 import au.id.tmm.utilities.syntax.tuples.->
 import cats.effect.{ExitCode, IO, IOApp}
-import java.time.Duration
-import scala.concurrent.duration.{Duration => ScalaDuration}
-import scala.concurrent.{duration => scaladuration}
-import au.id.tmm.intime.std.syntax.all._
 
 import scala.collection.immutable.ArraySeq
+import scala.concurrent.{duration => scaladuration}
 
 object Main extends IOApp {
   override def run(args: List[String]): IO[ExitCode] =
@@ -27,17 +27,17 @@ object Main extends IOApp {
       cliConfig         <- CliConfig.from(configFilePath)
 
       pullRequestLister = new PullRequestLister(cliConfig.gitHubConfiguration)
-      branchCloner = new BranchCloner(Some(cliConfig.performance.checkoutTimeout), cliConfig.gitHubConfiguration.credentials)
+      branchCloner =
+        new BranchCloner(Some(cliConfig.performance.checkoutTimeout), cliConfig.gitHubConfiguration.credentials)
       languageDetector = new LanguageDetector(cliConfig.performance.languageCheckTimeout)
 
-      detectedLanguagesForEveryPr <-
-        detectLanguagesForEveryPr(
-          pullRequestLister,
-          branchCloner,
-          languageDetector,
-          cliConfig.performance,
-          cliConfig.repositoryToScan,
-        )
+      detectedLanguagesForEveryPr <- detectLanguagesForEveryPr(
+        pullRequestLister,
+        branchCloner,
+        languageDetector,
+        cliConfig.performance,
+        cliConfig.repositoryToScan,
+      )
 
     } yield ???
 
@@ -45,7 +45,6 @@ object Main extends IOApp {
     pullRequestLister: PullRequestLister,
     branchCloner: BranchCloner,
     languageDetector: LanguageDetector,
-
     performanceConfig: PerformanceConfig,
     repository: RepositoryName,
   ): IO[ArraySeq[PullRequest -> ExceptionOr[DetectedLanguages]]] =
@@ -54,16 +53,35 @@ object Main extends IOApp {
 
       delayBetweenCheckouts = Duration.ofMinutes(1) / performanceConfig.checkoutsPerMinute
 
-      _ = streamThatEmitsEvery(pullRequests, delayBetweenCheckouts).evalMap { pullRequest =>
-        branchCloner.useRepositoryAtRef(
-          cloneUri = ???,
-          reference = pullRequest.head.ref
-        )
-      }
+      detectedLanguagesPerPullRequest <-
+        streamThatEmitsEvery(pullRequests, delayBetweenCheckouts)
+          .evalMap { pullRequest =>
+            val detectedLanguagesIO: IO[DetectedLanguages] = for {
+              cloneUri <- IO.fromEither {
+                pullRequest.head.repository
+                  .map(_.cloneUris.https)
+                  .toRight(GenericException("Head repository was deleted"))
+              }
+              refToClone = pullRequest.head.ref.getOrElse(pullRequest.head.sha.asHexString)
+              detectedLanguages <- branchCloner.useRepositoryAtRef(cloneUri, refToClone) { (repositoryPath, jGit) =>
+                languageDetector.detectLanguages(repositoryPath)
+              }
+            } yield detectedLanguages
 
-    } yield ???
+            detectedLanguagesIO.attempt.flatMap {
+              case Left(e: Exception)       => IO.pure(pullRequest -> Left(e))
+              case Left(t: Throwable)       => IO.raiseError(t)
+              case Right(detectedLanguages) => IO.pure(pullRequest -> Right(detectedLanguages))
+            }
+          }
+          .compile
+          .to(ArraySeq)
+
+    } yield detectedLanguagesPerPullRequest
 
   private def streamThatEmitsEvery[A](elements: ArraySeq[A], delay: Duration): fs2.Stream[IO, A] =
-    fs2.Stream.awakeEvery[IO](scaladuration.Duration(delay.toMillis, scaladuration.MILLISECONDS)).zipRight(fs2.Stream.emits(elements))
+    fs2.Stream
+      .awakeEvery[IO](scaladuration.Duration(delay.toMillis, scaladuration.MILLISECONDS))
+      .zipRight(fs2.Stream.emits(elements))
 
 }
