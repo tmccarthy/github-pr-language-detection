@@ -6,6 +6,7 @@ import au.id.tmm.utilities.codec.binarycodecs._
 import au.id.tmm.utilities.errors.{ExceptionOr, GenericException}
 import cats.effect.IO
 import cats.syntax.traverse.toTraverseOps
+import mouse.string._
 import org.kohsuke.github.{
   GHCommitPointer,
   GHIssueState,
@@ -47,7 +48,8 @@ class PullRequestLister(
 
   private def parsePullRequest(apiPR: GHPullRequest): ExceptionOr[PullRequest] =
     for {
-      number <- requireNonNull(apiPR.getNumber)
+      number      <- requireNonNull(apiPR.getNumber)
+      whenCreated <- requireNonNull(apiPR.getCreatedAt).map(_.toInstant)
       whenClosed = Option(apiPR.getClosedAt).map(_.toInstant)
       title   <- requireNonNull(apiPR.getTitle)
       htmlUrl <- requireNonNull(apiPR.getHtmlUrl).map(_.toURI)
@@ -60,6 +62,7 @@ class PullRequestLister(
       whenMerged = Option(apiPR.getMergedAt).map(_.toInstant)
     } yield PullRequest(
       number,
+      whenCreated,
       whenClosed,
       title,
       htmlUrl,
@@ -76,8 +79,21 @@ class PullRequestLister(
     for {
       sha <- requireNonNull(apiCommit.getSha).flatMap(_.parseHex)
       ref = Option(apiCommit.getRef)
-    } yield Commit(ref, sha)
 
+      repository = Option(apiCommit.getRepository)
+
+      repository <- repository.traverse { r =>
+        for {
+          repoName      <- requireNonNull(r.getName)
+          repoOwnerName <- requireNonNull(r.getOwnerName)
+          httpsCloneUri <- requireNonNull(r.getHttpTransportUrl).flatMap(_.parseURI)
+          sshCloneUri   <- requireNonNull(r.getSshUrl)
+        } yield Commit.Repository(
+          Commit.Repository.CloneUris(sshCloneUri, httpsCloneUri),
+          RepositoryName(repoOwnerName, repoName),
+        )
+      }
+    } yield Commit(repository, ref, sha)
 
   private def requireNonNull[A](a: A): ExceptionOr[A] =
     if (a == null) Left(GenericException("Encountered null")) else Right(a)

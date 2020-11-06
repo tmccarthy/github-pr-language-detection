@@ -5,6 +5,7 @@ import java.time.Instant
 
 final case class PullRequest(
   number: Int,
+  whenCreated: Instant,
   whenClosed: Option[Instant],
   title: String,
   htmlUrl: URI,

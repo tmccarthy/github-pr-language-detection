@@ -17,22 +17,24 @@ import scala.collection.immutable.ArraySeq
 import scala.concurrent.TimeoutException
 import scala.util.matching.Regex
 
-class LanguageDetector {
+class LanguageDetector(
+  timeout: Option[Duration],
+) {
 
-  def detectLanguages(path: Path, timeout: Option[Duration]): IO[DetectedLanguages] =
+  def detectLanguages(path: Path): IO[DetectedLanguages] =
     for {
-      linguistOutput    <- runLinguistIn(path, timeout)
+      linguistOutput    <- runLinguistIn(path)
       detectedLanguages <- IO.fromEither(parseDetectedLanguages(linguistOutput))
     } yield detectedLanguages
 
-  private def runLinguistIn(path: Path, timeout: Option[Duration]): IO[String] =
+  private def runLinguistIn(path: Path): IO[String] =
     for {
       processBuilder <- IO.pure {
         new ProcessBuilder()
           .command("github-linguist")
           .directory(path.toFile)
       }
-      (stdErr, stdOut, exitCode) <- runProcess(processBuilder, timeout)
+      (stdErr, stdOut, exitCode) <- runProcess(processBuilder)
       _ <- exitCode match {
         case ExitCode(0) => IO.unit
         case ExitCode(errorCode) =>
@@ -40,10 +42,10 @@ class LanguageDetector {
       }
     } yield stdOut.asString
 
-  private def runProcess(processBuilder: ProcessBuilder, timeout: Option[Duration]): IO[(StdErr, StdOut, ExitCode)] =
+  private def runProcess(processBuilder: ProcessBuilder): IO[(StdErr, StdOut, ExitCode)] =
     for {
       process <- IO(processBuilder.start())
-      _       <- waitFor(process, timeout)
+      _       <- waitFor(process)
       (stdErr, stdOut, exitCode) <- IO {
         val stdErr = StdErr(new String(process.getErrorStream.readAllBytes(), StandardCharsets.UTF_8))
         val stdOut = StdOut(new String(process.getInputStream.readAllBytes(), StandardCharsets.UTF_8))
@@ -52,7 +54,7 @@ class LanguageDetector {
       }
     } yield (stdErr, stdOut, exitCode)
 
-  private def waitFor(process: Process, timeout: Option[Duration]): IO[Process] =
+  private def waitFor(process: Process): IO[Process] =
     for {
       timedOut <- IO {
         timeout match {

@@ -10,12 +10,13 @@ import org.apache.commons.io.FileUtils
 import org.eclipse.jgit.api.{Git => JGit}
 import org.eclipse.jgit.transport.UsernamePasswordCredentialsProvider
 
-class BranchCloner {
+class BranchCloner(
+  checkoutTimeout: Option[Duration],
+  gitHubCredentials: GitHubCredentials,
+) {
 
   def useRepositoryAtRef[A](
-    checkoutTimeout: Option[Duration],
     cloneUri: URI,
-    gitHubCredentials: GitHubCredentials,
     reference: String, // TODO should have a type
   )(
     use: (Path, JGit) => IO[A],

@@ -7,17 +7,19 @@ settingsHelper.settingsForBuild
 lazy val root = project
   .in(file("."))
   .settings(settingsHelper.settingsForRootProject)
-  .settings(console := (console in Compile in core).value)
+  .settings(console := (console in Compile in lib).value)
   .aggregate(
-    core,
+    lib,
+    cli,
   )
 
 val tmmCollectionsVersion = "0.0.4"
 val tmmUtilsVersion = "0.6.2"
+val intimeVersion = "2.2.0"
 
-lazy val core = project
-  .in(file("core"))
-  .settings(settingsHelper.settingsForSubprojectCalled("core"))
+lazy val lib = project
+  .in(file("lib"))
+  .settings(settingsHelper.settingsForSubprojectCalled("lib"))
   .settings(
     libraryDependencies += "org.typelevel"                   %% "cats-effect"                % "2.2.0",
     libraryDependencies += "org.typelevel"                   %% "mouse"                      % "0.25",
@@ -31,6 +33,19 @@ lazy val core = project
     libraryDependencies += "org.kohsuke"                      % "github-api"                 % "1.116",
     libraryDependencies += "org.slf4j"                        % "slf4j-api"                  % "1.7.30",
     libraryDependencies += "org.slf4j"                        % "slf4j-simple"               % "1.7.30" % Runtime,
+  )
+
+lazy val cli = project
+  .in(file("cli"))
+  .settings(settingsHelper.settingsForSubprojectCalled("cli"))
+  .settings(publish / skip := true)
+  .dependsOn(lib)
+  .settings(
+    libraryDependencies += "au.id.tmm.intime"                %% "intime-core"                 % intimeVersion,
+    libraryDependencies += "au.id.tmm.tmm-scala-collections" %% "tmm-scala-collections-circe" % tmmCollectionsVersion,
+    libraryDependencies += "au.id.tmm.tmm-scala-plotly"      %% "tmm-scala-plotly-core"       % "0.0.2",
+    libraryDependencies += "io.circe"                        %% "circe-parser"                % "0.14.0-M1",
+    libraryDependencies += "co.fs2"                          %% "fs2-core"                    % "2.4.4",
   )
 
 addCommandAlias("check", ";+test;scalafmtCheckAll")

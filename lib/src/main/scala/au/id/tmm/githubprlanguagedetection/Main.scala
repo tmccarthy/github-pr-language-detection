@@ -36,7 +36,7 @@ object Main extends IOApp {
       pullRequests      <- pullRequestLister.listPullRequestsFor(RepositoryName("typelevel", "mouse"))
       _ <- IO {
         pullRequests.sortBy(_.number).foreach { pr =>
-          println(s"#${pr.number} ${pr.title}")
+          println(pr)
         }
       }
     } yield ()
@@ -44,11 +44,9 @@ object Main extends IOApp {
   private def useTmmUtilsNonEmptyCollections(use: (Path, JGit) => IO[Unit]): IO[Unit] =
     for {
       configuration <- publicGitHubConfig
-      branchCloner = new BranchCloner()
+      branchCloner = new BranchCloner(checkoutTimeout = None, configuration.credentials)
       _ <- branchCloner.useRepositoryAtRef(
-        checkoutTimeout = None,
         cloneUri = new URI("https://github.com/tmccarthy/tmmUtils.git"),
-        configuration.credentials,
         reference = "non-empty-collections",
       )(use)
     } yield ()
@@ -62,8 +60,8 @@ object Main extends IOApp {
 
   private def printDetectedLanguages(repoPath: Path, jgit: JGit): IO[Unit] =
     for {
-      languageDetector <- IO.pure(new LanguageDetector())
-      detectedLanguages <- languageDetector.detectLanguages(repoPath, timeout = None)
+      languageDetector <- IO.pure(new LanguageDetector(timeout = None))
+      detectedLanguages <- languageDetector.detectLanguages(repoPath)
       _ <- IO {
         detectedLanguages.results.foreach {
           case (language, fraction) => println(s"${fraction.asDouble} -> ${language.asString}")
@@ -72,5 +70,5 @@ object Main extends IOApp {
     } yield ()
 
   override def run(args: List[String]): IO[ExitCode] =
-    useTmmUtilsNonEmptyCollections(printDetectedLanguages).as(ExitCode.Success)
+    listPrsFromMouse.as(ExitCode.Success)
 }
