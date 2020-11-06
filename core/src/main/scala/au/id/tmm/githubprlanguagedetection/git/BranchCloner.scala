@@ -60,6 +60,10 @@ class BranchCloner {
             )
         }
 
+        checkoutTimeOut.foreach { timeoutDuration =>
+          cloneCommand.setTimeout(math.toIntExact(timeoutDuration.toSeconds max 1))
+        }
+
         cloneCommand
           .call()
       }

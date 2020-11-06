@@ -9,10 +9,12 @@ import au.id.tmm.githubprlanguagedetection.git.BranchCloner
 import au.id.tmm.githubprlanguagedetection.github.PullRequestLister
 import au.id.tmm.githubprlanguagedetection.github.configuration.{GitHubConfiguration, GitHubCredentials, GitHubInstance}
 import au.id.tmm.githubprlanguagedetection.github.model.RepositoryName
+import au.id.tmm.githubprlanguagedetection.linguist.LanguageDetector
 import cats.effect.{ExitCode, IO, IOApp}
 import com.github.ghik.silencer.silent
 import org.eclipse.jgit.api.{Git => JGit}
 
+@silent("never used")
 object Main extends IOApp {
 
   private val publicGitHubConfig: IO[GitHubConfiguration] =
@@ -27,7 +29,6 @@ object Main extends IOApp {
       )
     } yield configuration
 
-  @silent("never used")
   private def listPrsFromMouse: IO[Unit] =
     for {
       configuration     <- publicGitHubConfig
@@ -40,8 +41,7 @@ object Main extends IOApp {
       }
     } yield ()
 
-  @silent("never used")
-  private def useTmmUtilsNonEmptyCollections: IO[Unit] =
+  private def useTmmUtilsNonEmptyCollections(use: (Path, JGit) => IO[Unit]): IO[Unit] =
     for {
       configuration <- publicGitHubConfig
       branchCloner = new BranchCloner()
@@ -50,7 +50,7 @@ object Main extends IOApp {
         cloneUri = new URI("https://github.com/tmccarthy/tmmUtils.git"),
         configuration.credentials,
         reference = "non-empty-collections",
-      )(printJavaVersion)
+      )(use)
     } yield ()
 
   private def printJavaVersion(repoPath: Path, jgit: JGit): IO[Unit] =
@@ -60,6 +60,17 @@ object Main extends IOApp {
       _               <- IO(println(javaVersion))
     } yield ()
 
+  private def printDetectedLanguages(repoPath: Path, jgit: JGit): IO[Unit] =
+    for {
+      languageDetector <- IO.pure(new LanguageDetector())
+      detectedLanguages <- languageDetector.detectLanguages(repoPath, timeout = None)
+      _ <- IO {
+        detectedLanguages.results.foreach {
+          case (language, fraction) => println(s"${fraction.asDouble} -> ${language.asString}")
+        }
+      }
+    } yield ()
+
   override def run(args: List[String]): IO[ExitCode] =
-    useTmmUtilsNonEmptyCollections.as(ExitCode.Success)
+    useTmmUtilsNonEmptyCollections(printDetectedLanguages).as(ExitCode.Success)
 }
