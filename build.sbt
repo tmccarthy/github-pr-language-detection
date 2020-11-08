@@ -14,7 +14,7 @@ lazy val root = project
   )
 
 val tmmCollectionsVersion = "0.0.4"
-val tmmUtilsVersion = "0.6.2"
+val tmmUtilsVersion = "0.7.0"
 val intimeVersion = "2.2.0"
 
 lazy val lib = project
@@ -28,7 +28,8 @@ lazy val lib = project
     libraryDependencies += "au.id.tmm.tmm-utils"             %% "tmm-utils-syntax"           % tmmUtilsVersion,
     libraryDependencies += "au.id.tmm.tmm-utils"             %% "tmm-utils-errors"           % tmmUtilsVersion,
     libraryDependencies += "au.id.tmm.tmm-utils"             %% "tmm-utils-cats"             % tmmUtilsVersion,
-    libraryDependencies += "au.id.tmm.tmm-utils"             %% "tmm-utils-codec"            % tmmUtilsVersion,
+    libraryDependencies += "au.id.tmm.digest4s"              %% "digest4s-core"              % "0.0.1",
+    libraryDependencies += "au.id.tmm.intime"                %% "intime-core"                % intimeVersion,
     libraryDependencies += "org.eclipse.jgit"                 % "org.eclipse.jgit"           % "5.9.0.202009080501-r",
     libraryDependencies += "org.kohsuke"                      % "github-api"                 % "1.116",
     libraryDependencies += "org.slf4j"                        % "slf4j-api"                  % "1.7.30",
@@ -41,7 +42,6 @@ lazy val cli = project
   .settings(publish / skip := true)
   .dependsOn(lib)
   .settings(
-    libraryDependencies += "au.id.tmm.intime"                %% "intime-core"                 % intimeVersion,
     libraryDependencies += "au.id.tmm.tmm-scala-collections" %% "tmm-scala-collections-circe" % tmmCollectionsVersion,
     libraryDependencies += "au.id.tmm.tmm-scala-plotly"      %% "tmm-scala-plotly-core"       % "0.0.2",
     libraryDependencies += "io.circe"                        %% "circe-parser"                % "0.14.0-M1",
