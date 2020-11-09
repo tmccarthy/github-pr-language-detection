@@ -30,6 +30,7 @@ lazy val lib = project
     libraryDependencies += "au.id.tmm.tmm-utils"             %% "tmm-utils-cats"             % tmmUtilsVersion,
     libraryDependencies += "au.id.tmm.digest4s"              %% "digest4s-core"              % "0.0.1",
     libraryDependencies += "au.id.tmm.intime"                %% "intime-core"                % intimeVersion,
+    libraryDependencies += "co.fs2"                          %% "fs2-core"                   % "2.4.4",
     libraryDependencies += "org.eclipse.jgit"                 % "org.eclipse.jgit"           % "5.9.0.202009080501-r",
     libraryDependencies += "org.kohsuke"                      % "github-api"                 % "1.116",
     libraryDependencies += "org.slf4j"                        % "slf4j-api"                  % "1.7.30",
@@ -45,7 +46,6 @@ lazy val cli = project
     libraryDependencies += "au.id.tmm.tmm-scala-collections" %% "tmm-scala-collections-circe" % tmmCollectionsVersion,
     libraryDependencies += "au.id.tmm.tmm-scala-plotly"      %% "tmm-scala-plotly-core"       % "0.0.2",
     libraryDependencies += "io.circe"                        %% "circe-parser"                % "0.14.0-M1",
-    libraryDependencies += "co.fs2"                          %% "fs2-core"                    % "2.4.4",
     libraryDependencies += "com.github.tototoshi"            %% "scala-csv"                   % "1.3.6",
   )
 

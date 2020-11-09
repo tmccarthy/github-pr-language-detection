@@ -2,7 +2,7 @@ package au.id.tmm.githubprlanguagedetection.github
 
 import au.id.tmm.githubprlanguagedetection.github.configuration.{GitHubConfiguration, GitHubCredentials, GitHubInstance}
 import au.id.tmm.githubprlanguagedetection.github.model.{Commit, PullRequest, RepositoryName}
-import au.id.tmm.utilities.codec.binarycodecs._
+import au.id.tmm.digest4s.binarycodecs.syntax._
 import au.id.tmm.utilities.errors.{ExceptionOr, GenericException}
 import cats.effect.IO
 import cats.syntax.traverse.toTraverseOps

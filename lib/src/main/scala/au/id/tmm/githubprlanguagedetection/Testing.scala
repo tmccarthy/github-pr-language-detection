@@ -10,6 +10,7 @@ import au.id.tmm.githubprlanguagedetection.github.PullRequestLister
 import au.id.tmm.githubprlanguagedetection.github.configuration.{GitHubConfiguration, GitHubCredentials, GitHubInstance}
 import au.id.tmm.githubprlanguagedetection.github.model.RepositoryName
 import au.id.tmm.githubprlanguagedetection.linguist.LanguageDetector
+import au.id.tmm.githubprlanguagedetection.linguist.model.DetectedLanguages
 import cats.effect.{ExitCode, IO, IOApp}
 import com.github.ghik.silencer.silent
 import org.eclipse.jgit.api.{Git => JGit}
@@ -64,7 +65,7 @@ object Testing extends IOApp {
       detectedLanguages <- languageDetector.detectLanguages(repoPath)
       _ <- IO {
         detectedLanguages.results.foreach {
-          case (language, fraction) => println(s"${fraction.asDouble} -> ${language.asString}")
+          case DetectedLanguages.LanguageFraction(language, fraction) => println(s"${fraction.asDouble} -> ${language.asString}")
         }
       }
     } yield ()

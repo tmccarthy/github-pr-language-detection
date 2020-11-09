@@ -72,17 +72,17 @@ class LanguageDetector(
 
   private def parseDetectedLanguages(linguistOutput: String): ExceptionOr[DetectedLanguages] =
     for {
-      tuples <- linguistOutput.linesIterator.to(ArraySeq).traverse {
+      languageFractions <- linguistOutput.linesIterator.to(ArraySeq).traverse {
         case LINGUIST_LINE_PATTERN(fractionAsString, languageName) =>
           for {
             fraction <- fractionAsString.parseDouble
-          } yield Language(languageName) -> Fraction(fraction)
+          } yield DetectedLanguages.LanguageFraction(Language(languageName), Fraction(fraction))
       }
 
-      sortedTuples = tuples.sortBy { case (_, fraction) => fraction }.reverse
+      sortedLanguageFractions = languageFractions.sorted
 
       nonEmpty <-
-        NonEmptyArraySeq.fromIterable(sortedTuples).toRight(GenericException("Empty set of detected languages"))
+        NonEmptyArraySeq.fromIterable(sortedLanguageFractions).toRight(GenericException("Empty set of detected languages"))
     } yield DetectedLanguages(nonEmpty)
 
 }

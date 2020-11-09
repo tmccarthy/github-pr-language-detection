@@ -1,4 +1,4 @@
-package au.id.tmm.githubprlanguagedetection.reporting
+package au.id.tmm.githubprlanguagedetection.reporting.model
 
 import java.net.URI
 import java.time.format.DateTimeFormatter
@@ -10,12 +10,11 @@ import au.id.tmm.digest4s.binarycodecs.syntax._
 import au.id.tmm.digest4s.digest.SHA256Digest
 import au.id.tmm.githubprlanguagedetection.github.model.PullRequest
 import au.id.tmm.githubprlanguagedetection.linguist.model.{DetectedLanguages, Language}
-import au.id.tmm.githubprlanguagedetection.reporting.GitHubPrLanguageDetectionReport.PullRequestResult.LanguageDetectionResult
-import au.id.tmm.githubprlanguagedetection.reporting.GitHubPrLanguageDetectionReport._
+import au.id.tmm.githubprlanguagedetection.reporting.model.GitHubPrLanguageDetectionReport._
 import au.id.tmm.intime.std.syntax.all._
-import au.id.tmm.utilities.errors.{ErrorMessageOr, ProductException}
+import au.id.tmm.utilities.errors.ErrorMessageOr
 import au.id.tmm.utilities.syntax.tuples.->
-import cats.syntax.foldable._
+import cats.Monoid
 
 import scala.collection.immutable.ArraySeq
 
@@ -28,11 +27,15 @@ final case class GitHubPrLanguageDetectionReport(
     asCsvRows.map(encoder.encode)
   }
 
-  private lazy val languagesDetectedForDeduplicatedPrs: ArraySeq[PullRequest -> LanguageDetectionResult.LanguageDetected] = {
-    val lookup: Map[PullRequest, LanguageDetectionResult.LanguageDetected] = resultsPerPr
-      .safeGroupBy { case (pr, result) => result.projectChecksum }
-      .map { case (checksum, rows) => rows.head }
-      .collect { case (pr, PullRequestResult(result: PullRequestResult.LanguageDetectionResult.LanguageDetected, _)) => pr -> result }
+  private lazy val languageDetectedForDeduplicatedPrs: ArraySeq[PullRequest -> Language] = {
+    val lookup: Map[PullRequest, Language] = resultsPerPr
+      .collect { case (pr, r: PullRequestResult.Success) => pr -> r }
+      .safeGroupBy { case (pr, result) => result.checksum }
+      .map { case (checksum, rows) =>
+        rows.head match {
+          case (pr, result) => pr -> result.bestGuess
+        }
+      }
 
     resultsPerPr.flatMap { case (pr, result) => lookup.get(pr).map(detectedLanguages => pr -> detectedLanguages) }
   }
@@ -45,11 +48,14 @@ final case class GitHubPrLanguageDetectionReport(
         pr.whenClosed,
         pr.title,
         pr.htmlUrl,
-        result.languageDetectionResult match {
-          case LanguageDetectionResult.LanguageDetectionFailed(cause) => Left(cause.getMessage)
-          case LanguageDetectionResult.LanguageDetected(fullResults, bestGuess) => Right(bestGuess)
+        result match {
+          case PullRequestResult.Failure(cause) => Left(cause.getMessage)
+          case PullRequestResult.Success(fullResults, bestGuess, checksum) => Right(bestGuess)
         },
-        result.projectChecksum,
+        result match {
+          case PullRequestResult.Failure(cause) => Left(cause.getMessage)
+          case PullRequestResult.Success(fullResults, bestGuess, checksum) => Right(checksum)
+        },
       )
     }
 
@@ -62,11 +68,11 @@ final case class GitHubPrLanguageDetectionReport(
     val binStartDates: ArraySeq[LocalDate] = ArraySeq
       .iterate(startDate, MAX_NUM_PERIODS_FOR_TEMPORAL_REPORT)(d => d + binSize)
 
-    val prsPerDate: collection.BufferedIterator[LocalDate -> Map[Language, Int]] = languagesDetectedForDeduplicatedPrs
+    val prsPerDate: collection.BufferedIterator[LocalDate -> Map[Language, Int]] = languageDetectedForDeduplicatedPrs
       .groupMap {
         case (pr, languageDetected) => pr.whenCreated.atZone(timeZone).toLocalDate
       } {
-        case (pr, languageDetected) => languageDetected.bestGuess
+        case (pr, languageDetected) => languageDetected
       }
       .to(ArraySeq)
       .collect {
@@ -77,19 +83,19 @@ final case class GitHubPrLanguageDetectionReport(
       .buffered
 
     val countsPerPeriod = binStartDates.map { binStart =>
-      binStart -> prsPerDate
+      binStart -> Monoid[Map[Language, Int]].combineAll(prsPerDate
         .takeUpTo { case (d, _) => d < (binStart + binSize) }
         .to(ArraySeq)
         .map { case (_, counts) => counts }
-        .fold
+      )
     }
 
     TemporalReport(startDate, binSize, countsPerPeriod)
   }
 
   def proportionalReport: ProportionalReport = ProportionalReport {
-    languagesDetectedForDeduplicatedPrs
-      .map { case (pr, languageDetectionResult) => languageDetectionResult.bestGuess }
+    languageDetectedForDeduplicatedPrs
+      .map { case (pr, language) => language }
       .countOccurrences
   }
 
@@ -99,24 +105,20 @@ object GitHubPrLanguageDetectionReport {
 
   private val MAX_NUM_PERIODS_FOR_TEMPORAL_REPORT = 1_000
 
-  final case class PullRequestResult(
-    languageDetectionResult: PullRequestResult.LanguageDetectionResult,
-    projectChecksum: SHA256Digest,
-  )
+  sealed trait PullRequestResult
 
   object PullRequestResult {
 
-    sealed trait LanguageDetectionResult
+    final case class Success(
+      detectedLanguages: DetectedLanguages,
+      bestGuess: Language,
+      checksum: SHA256Digest,
+    ) extends PullRequestResult
 
-    object LanguageDetectionResult {
-      final case class LanguageDetectionFailed(cause: Exception)
-          extends ProductException.WithCause(cause)
-          with LanguageDetectionResult
-      final case class LanguageDetected(
-        fullResults: DetectedLanguages,
-        bestGuess: Language,
-      ) extends LanguageDetectionResult
-    }
+    final case class Failure(
+      e: Exception,
+    ) extends PullRequestResult
+
   }
 
   final case class CsvRow(
@@ -126,7 +128,7 @@ object GitHubPrLanguageDetectionReport {
     prTitle: String,
     prUrl: URI,
     detectedLanguage: ErrorMessageOr[Language],
-    projectChecksum: SHA256Digest,
+    projectChecksum: ErrorMessageOr[SHA256Digest],
   )
 
   object CsvRow {
@@ -143,15 +145,18 @@ object GitHubPrLanguageDetectionReport {
           row.prCreated.atZone(timeZone).format(dateTimeFormatter),
           row.prClosed match {
             case Some(prClosed) => prClosed.atZone(timeZone).format(dateTimeFormatter)
-            case None           => ""
+            case None => ""
           },
           row.prTitle,
           row.prUrl.toString,
           row.detectedLanguage match {
-            case Right(language)    => language.asString
+            case Right(language) => language.asString
             case Left(errorMessage) => s"Error: $errorMessage"
           },
-          row.projectChecksum.asHexString,
+          row.projectChecksum match {
+            case Right(checksum) => checksum.asHexString
+            case Left(errorMessage) => s"Error: $errorMessage"
+          },
         )
     }
 
