@@ -4,17 +4,18 @@ import java.net.URI
 import java.time.format.DateTimeFormatter
 import java.time.{Instant, LocalDate, Period, ZoneId}
 
-import au.id.tmm.intime.std.syntax.all._
 import au.id.tmm.collections.NonEmptyArraySeq
 import au.id.tmm.collections.syntax._
+import au.id.tmm.digest4s.binarycodecs.syntax._
 import au.id.tmm.digest4s.digest.SHA256Digest
 import au.id.tmm.githubprlanguagedetection.github.model.PullRequest
 import au.id.tmm.githubprlanguagedetection.linguist.model.{DetectedLanguages, Language}
-import au.id.tmm.githubprlanguagedetection.reporting.GitHubPrLanguageDetectionReport.{CsvRow, ProportionalReport, PullRequestResult, TemporalReport}
-import au.id.tmm.digest4s.binarycodecs.syntax._
 import au.id.tmm.githubprlanguagedetection.reporting.GitHubPrLanguageDetectionReport.PullRequestResult.LanguageDetectionResult
+import au.id.tmm.githubprlanguagedetection.reporting.GitHubPrLanguageDetectionReport._
+import au.id.tmm.intime.std.syntax.all._
 import au.id.tmm.utilities.errors.{ErrorMessageOr, ProductException}
 import au.id.tmm.utilities.syntax.tuples.->
+import cats.syntax.foldable._
 
 import scala.collection.immutable.ArraySeq
 
@@ -36,19 +37,67 @@ final case class GitHubPrLanguageDetectionReport(
     resultsPerPr.flatMap { case (pr, result) => lookup.get(pr).map(detectedLanguages => pr -> detectedLanguages) }
   }
 
-  def asCsvRows: NonEmptyArraySeq[CsvRow] = ???
+  def asCsvRows: NonEmptyArraySeq[CsvRow] =
+    resultsPerPr.map {
+      case (pr, result) => CsvRow(
+        pr.number,
+        pr.whenCreated,
+        pr.whenClosed,
+        pr.title,
+        pr.htmlUrl,
+        result.languageDetectionResult match {
+          case LanguageDetectionResult.LanguageDetectionFailed(cause) => Left(cause.getMessage)
+          case LanguageDetectionResult.LanguageDetected(fullResults, bestGuess) => Right(bestGuess)
+        },
+        result.projectChecksum,
+      )
+    }
 
   def temporalReport(
-    datum: LocalDate,
+    startDate: LocalDate,
     binSize: Period,
     timeZone: ZoneId,
-  ): TemporalReport = ???
+  ): TemporalReport = {
 
-  def proportionalReport: ProportionalReport = ???
+    val binStartDates: ArraySeq[LocalDate] = ArraySeq
+      .iterate(startDate, MAX_NUM_PERIODS_FOR_TEMPORAL_REPORT)(d => d + binSize)
+
+    val prsPerDate: collection.BufferedIterator[LocalDate -> Map[Language, Int]] = languagesDetectedForDeduplicatedPrs
+      .groupMap {
+        case (pr, languageDetected) => pr.whenCreated.atZone(timeZone).toLocalDate
+      } {
+        case (pr, languageDetected) => languageDetected.bestGuess
+      }
+      .to(ArraySeq)
+      .collect {
+        case (date, languagesDetected) if date >= startDate => date -> languagesDetected.countOccurrences
+      }
+      .sortBy { case (date, _) => date }
+      .iterator
+      .buffered
+
+    val countsPerPeriod = binStartDates.map { binStart =>
+      binStart -> prsPerDate
+        .takeUpTo { case (d, _) => d < (binStart + binSize) }
+        .to(ArraySeq)
+        .map { case (_, counts) => counts }
+        .fold
+    }
+
+    TemporalReport(startDate, binSize, countsPerPeriod)
+  }
+
+  def proportionalReport: ProportionalReport = ProportionalReport {
+    languagesDetectedForDeduplicatedPrs
+      .map { case (pr, languageDetectionResult) => languageDetectionResult.bestGuess }
+      .countOccurrences
+  }
 
 }
 
 object GitHubPrLanguageDetectionReport {
+
+  private val MAX_NUM_PERIODS_FOR_TEMPORAL_REPORT = 1_000
 
   final case class PullRequestResult(
     languageDetectionResult: PullRequestResult.LanguageDetectionResult,
@@ -56,6 +105,7 @@ object GitHubPrLanguageDetectionReport {
   )
 
   object PullRequestResult {
+
     sealed trait LanguageDetectionResult
 
     object LanguageDetectionResult {
@@ -112,7 +162,7 @@ object GitHubPrLanguageDetectionReport {
   }
 
   final case class TemporalReport(
-    datum: LocalDate,
+    startDate: LocalDate,
     binSize: Period,
 
     countsPerPeriod: ArraySeq[LocalDate -> Map[Language, Int]],
