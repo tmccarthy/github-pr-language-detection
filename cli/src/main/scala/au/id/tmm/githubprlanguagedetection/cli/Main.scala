@@ -1,13 +1,16 @@
 package au.id.tmm.githubprlanguagedetection.cli
 
 import java.nio.file.Paths
+import java.time.ZoneId
+import java.time.format.DateTimeFormatter
 
 import au.id.tmm.collections.syntax.toIterableOps
 import au.id.tmm.githubprlanguagedetection.git.BranchCloner
 import au.id.tmm.githubprlanguagedetection.github.PullRequestLister
 import au.id.tmm.githubprlanguagedetection.linguist.LanguageDetector
 import au.id.tmm.githubprlanguagedetection.reporting.ReportWriter
-import cats.effect.{ExitCode, IO, IOApp}
+import cats.effect.{Bracket, ExitCode, IO, IOApp}
+import com.github.tototoshi.csv.{CSVWriter, DefaultCSVFormat}
 
 object Main extends IOApp {
 
@@ -26,13 +29,28 @@ object Main extends IOApp {
 
       reportWriter = new ReportWriter(pullRequestLister, branchCloner, languageDetector)
 
-      _ <- reportWriter.produceGitHubPrLanguageDetectionReport(
+      report <- reportWriter.produceGitHubPrLanguageDetectionReport(
         cliConfig.performance.checkoutsPerMinute,
         cliConfig.performance.checkoutTimeout,
         cliConfig.performance.languageCheckTimeout,
         cliConfig.repositoryToScan,
       )
 
-    } yield ???
+      _ <- Bracket[IO, Throwable].bracket(
+        acquire = IO(CSVWriter.open(System.out)(new DefaultCSVFormat {})),
+      )(
+        use = csvWriter => IO {
+          csvWriter.writeAll(
+            report.asEncodedCsvRows(
+              cliConfig.timeZone.getOrElse(ZoneId.systemDefault()),
+              cliConfig.reportDateTimeFormat.getOrElse(DateTimeFormatter.ISO_LOCAL_DATE),
+            ).toSeq,
+          )
+        },
+      )(
+        release = csvWriter => IO(csvWriter.close()),
+      )
+
+    } yield ExitCode.Success
 
 }

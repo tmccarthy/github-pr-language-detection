@@ -17,3 +17,4 @@ project/plugins/project/
 *.gpg
 
 /*.creds.properties
+/*.runconfig.json

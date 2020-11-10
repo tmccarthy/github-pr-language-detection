@@ -3,7 +3,8 @@ package au.id.tmm.githubprlanguagedetection.cli
 import java.net.URI
 import java.nio.charset.StandardCharsets
 import java.nio.file.{Files, Path}
-import java.time.Duration
+import java.time.format.DateTimeFormatter
+import java.time.{Duration, ZoneId}
 
 import au.id.tmm.githubprlanguagedetection.cli.CliConfig.PerformanceConfig
 import au.id.tmm.githubprlanguagedetection.github.configuration.{GitHubConfiguration, GitHubCredentials, GitHubInstance}
@@ -19,6 +20,8 @@ final case class CliConfig(
   gitHubConfiguration: GitHubConfiguration,
   repositoryToScan: RepositoryName,
   performance: PerformanceConfig,
+  timeZone: Option[ZoneId],
+  reportDateTimeFormat: Option[DateTimeFormatter],
 )
 
 object CliConfig {
@@ -65,13 +68,24 @@ object CliConfig {
 
   private implicit val gitHubRepositoryNameDecoder: Decoder[RepositoryName] = Decoder[String].emap {
     case REPOSITORY_NAME_PATTERN(owner, repo) => Right(RepositoryName(owner, repo))
-    case badRepositoryName                    => Left(s"""Bad repository name "$badRepositoryName"""")
+    case badRepositoryName => Left(s"""Bad repository name "$badRepositoryName"""")
   }
 
-  implicit val decoder: Decoder[CliConfig] = Decoder.forProduct3(
+  private implicit val dateTimeFormatterDecoder: Decoder[DateTimeFormatter] = Decoder[String]
+    .emap { s =>
+      try {
+        Right(DateTimeFormatter.ofPattern(s))
+      } catch {
+        case e: IllegalArgumentException => Left(e.getMessage)
+      }
+    }
+
+  implicit val decoder: Decoder[CliConfig] = Decoder.forProduct5(
     "gitHubCredentials",
     "repositoryToScan",
     "performance",
+    "timeZone",
+    "reportDateTimeFormat",
   )(CliConfig.apply)
 
   def from(path: Path): IO[CliConfig] =
