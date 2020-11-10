@@ -13,12 +13,14 @@ import au.id.tmm.githubprlanguagedetection.github.PullRequestLister
 import au.id.tmm.githubprlanguagedetection.github.model.{PullRequest, RepositoryName}
 import au.id.tmm.githubprlanguagedetection.linguist.LanguageDetector
 import au.id.tmm.githubprlanguagedetection.linguist.model.{DetectedLanguages, Fraction, Language}
+import au.id.tmm.githubprlanguagedetection.reporting.ReportWriter.LOGGER
 import au.id.tmm.githubprlanguagedetection.reporting.model.GitHubPrLanguageDetectionReport
 import au.id.tmm.githubprlanguagedetection.reporting.model.GitHubPrLanguageDetectionReport.PullRequestResult
 import au.id.tmm.intime.std.syntax.all._
 import au.id.tmm.utilities.errors.{ExceptionOr, GenericException}
 import au.id.tmm.utilities.syntax.tuples.->
 import cats.effect.{IO, Timer}
+import org.slf4j.{Logger, LoggerFactory}
 
 import scala.collection.immutable.ArraySeq
 import scala.concurrent.{duration => scaladuration}
@@ -34,8 +36,6 @@ class ReportWriter(
 
   def produceGitHubPrLanguageDetectionReport(
     checkoutsPerMinute: Int,
-    checkoutTimeout: Duration,
-    languageCheckTimeout: Option[Duration],
     repository: RepositoryName,
   ): IO[GitHubPrLanguageDetectionReport] =
     for {
@@ -62,9 +62,9 @@ class ReportWriter(
             } yield (checksum, detectedLanguages)
 
             resultIO.attempt.flatMap {
-              case Left(e: Exception) => IO.pure(pullRequest -> Left(e))
+              case Left(e: Exception) => IO(LOGGER.error(s"Failed to parse languages for #${pullRequest.number}", e)).as(pullRequest -> Left(e))
               case Left(t: Throwable) => IO.raiseError(t)
-              case Right(result) => IO.pure(pullRequest -> Right(result))
+              case Right(result) => IO(LOGGER.error(s"Parsed languages for #${pullRequest.number}. First was ${result._2.results.head.language.asString}")).as(pullRequest -> Right(result))
             }
           }
           .compile
@@ -106,7 +106,7 @@ class ReportWriter(
 
   private def computeChecksumOfDirectory(path: Path): IO[SHA256Digest] = IO {
 
-    val digest: MessageDigest = MessageDigest.getInstance("SHA256")
+    val digest: MessageDigest = MessageDigest.getInstance("SHA-256")
 
     val digestOutputStream = new DigestOutputStream(OutputStream.nullOutputStream(), digest)
 
@@ -118,7 +118,11 @@ class ReportWriter(
         Files.copy(path, digestOutputStream)
       }
 
-    SHA256Digest(digest.digest().to(ArraySeq))
+    SHA256Digest(new ArraySeq.ofByte(digest.digest()))
   }
 
+}
+
+object ReportWriter {
+  private val LOGGER: Logger = LoggerFactory.getLogger(getClass)
 }

@@ -3,17 +3,13 @@ package au.id.tmm.githubprlanguagedetection.github
 import au.id.tmm.githubprlanguagedetection.github.configuration.{GitHubConfiguration, GitHubCredentials, GitHubInstance}
 import au.id.tmm.githubprlanguagedetection.github.model.{Commit, PullRequest, RepositoryName}
 import au.id.tmm.digest4s.binarycodecs.syntax._
+import au.id.tmm.githubprlanguagedetection.github.PullRequestLister.LOGGER
 import au.id.tmm.utilities.errors.{ExceptionOr, GenericException}
 import cats.effect.IO
 import cats.syntax.traverse.toTraverseOps
 import mouse.string._
-import org.kohsuke.github.{
-  GHCommitPointer,
-  GHIssueState,
-  GHPullRequest,
-  GitHub => GitHubClient,
-  GitHubBuilder => GitHubClientBuilder,
-}
+import org.kohsuke.github.{GHCommitPointer, GHIssueState, GHPullRequest, GitHub => GitHubClient, GitHubBuilder => GitHubClientBuilder}
+import org.slf4j.{Logger, LoggerFactory}
 
 import scala.collection.immutable.ArraySeq
 import scala.jdk.CollectionConverters._
@@ -22,13 +18,14 @@ class PullRequestLister(
   gitHubConfiguration: GitHubConfiguration,
 ) {
 
-  def listPullRequestsFor(repository: RepositoryName): IO[ArraySeq[PullRequest]] =
+  def listPullRequestsFor(repositoryName: RepositoryName): IO[ArraySeq[PullRequest]] =
     for {
       client             <- IO(makeClient)
-      repository         <- IO(client.getRepository(s"${repository.owner}/${repository.repo}"))
+      repository         <- IO(client.getRepository(repositoryName.asString))
       apiPullRequests    <- IO(repository.getPullRequests(GHIssueState.ALL).asScala.to(ArraySeq))
       parsedPullRequests <- IO.fromEither(apiPullRequests.traverse(parsePullRequest))
-    } yield parsedPullRequests
+      _ <- IO(LOGGER.info(s"Listed ${parsedPullRequests.size} PRs for ${repositoryName.asString}"))
+    } yield parsedPullRequests.sortBy(_.number)
 
   private def makeClient: GitHubClient = {
     var clientBuilder = new GitHubClientBuilder()
@@ -98,4 +95,8 @@ class PullRequestLister(
   private def requireNonNull[A](a: A): ExceptionOr[A] =
     if (a == null) Left(GenericException("Encountered null")) else Right(a)
 
+}
+
+object PullRequestLister {
+  private val LOGGER: Logger = LoggerFactory.getLogger(getClass)
 }

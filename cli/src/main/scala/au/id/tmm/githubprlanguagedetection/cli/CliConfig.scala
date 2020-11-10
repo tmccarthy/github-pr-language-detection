@@ -2,7 +2,7 @@ package au.id.tmm.githubprlanguagedetection.cli
 
 import java.net.URI
 import java.nio.charset.StandardCharsets
-import java.nio.file.{Files, Path, Paths}
+import java.nio.file.{Files, Path}
 import java.time.{Duration, LocalDate, Period, ZoneId}
 
 import au.id.tmm.githubprlanguagedetection.cli.CliConfig.PerformanceConfig
@@ -13,7 +13,6 @@ import cats.effect.IO
 import cats.syntax.functor.toFunctorOps
 import io.circe.Decoder
 
-import scala.util.Try
 import scala.util.matching.Regex
 
 final case class CliConfig(
@@ -36,7 +35,7 @@ object CliConfig {
   }
 
   final case class ReportConfig(
-    output: Path,
+    outputPath: String,
     timeZone: Option[ZoneId],
     temporalReportBinSize: Period,
     temporalReportStartDate: LocalDate,
@@ -44,9 +43,7 @@ object CliConfig {
   )
 
   object ReportConfig {
-    private implicit val pathDecoder: Decoder[Path] = Decoder[String].emapTry(s => Try(Paths.get(s)))
-
-    implicit val decoder: Decoder[ReportConfig] = Decoder.forProduct5("output", "timeZone", "temporalReportBinSize", "temporalReportBinSize", "numLanguagesToBreakOut")(ReportConfig.apply)
+    implicit val decoder: Decoder[ReportConfig] = Decoder.forProduct5("output", "timeZone", "temporalReportBinSize", "temporalReportStartDate", "numLanguagesToBreakOut")(ReportConfig.apply)
   }
 
   private val REPOSITORY_NAME_PATTERN: Regex = """^(\w+)/(\w+)$""".r
@@ -85,7 +82,7 @@ object CliConfig {
   }
 
   implicit val decoder: Decoder[CliConfig] = Decoder.forProduct4(
-    "gitHubCredentials",
+    "gitHubConfiguration",
     "repositoryToScan",
     "performance",
     "reportConfig",

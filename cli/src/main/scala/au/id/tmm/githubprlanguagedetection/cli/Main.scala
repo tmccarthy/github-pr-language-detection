@@ -31,13 +31,13 @@ object Main extends IOApp {
 
       report <- reportWriter.produceGitHubPrLanguageDetectionReport(
         cliConfig.performance.checkoutsPerMinute,
-        cliConfig.performance.checkoutTimeout,
-        cliConfig.performance.languageCheckTimeout,
         cliConfig.repositoryToScan,
       )
 
+      csvOutputFile <- IO(Paths.get(cliConfig.reportConfig.outputPath))
+
       _ <- Bracket[IO, Throwable].bracket(
-        acquire = IO(CSVWriter.open(System.out)(new DefaultCSVFormat {})),
+        acquire = IO(CSVWriter.open(csvOutputFile.toFile)(new DefaultCSVFormat {})),
       )(
         use = csvWriter => IO {
           csvWriter.writeAll(

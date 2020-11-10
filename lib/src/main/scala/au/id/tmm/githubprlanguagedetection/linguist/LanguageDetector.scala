@@ -38,7 +38,7 @@ class LanguageDetector(
       _ <- exitCode match {
         case ExitCode(0) => IO.unit
         case ExitCode(errorCode) =>
-          IO.raiseError(GenericException(s"Linguist failed with return code $errorCode: ${stdErr.asString}"))
+          IO.raiseError(GenericException(s"Linguist failed with return code $errorCode. Repository is at $path. Error message follows \n${stdErr.asString}"))
       }
     } yield stdOut.asString
 
@@ -58,7 +58,7 @@ class LanguageDetector(
     for {
       timedOut <- IO {
         timeout match {
-          case Some(timeout) => process.waitFor(timeout.toMillis, TimeUnit.MILLISECONDS)
+          case Some(timeout) => !process.waitFor(timeout.toMillis, TimeUnit.MILLISECONDS)
           case None => {
             process.waitFor()
             false
