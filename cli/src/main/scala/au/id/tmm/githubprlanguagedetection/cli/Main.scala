@@ -42,8 +42,8 @@ object Main extends IOApp {
         use = csvWriter => IO {
           csvWriter.writeAll(
             report.asEncodedCsvRows(
-              cliConfig.timeZone.getOrElse(ZoneId.systemDefault()),
-              cliConfig.reportDateTimeFormat.getOrElse(DateTimeFormatter.ISO_LOCAL_DATE),
+              cliConfig.reportConfig.timeZone.getOrElse(ZoneId.systemDefault()),
+              DateTimeFormatter.ISO_LOCAL_DATE,
             ).toSeq,
           )
         },

@@ -2,9 +2,8 @@ package au.id.tmm.githubprlanguagedetection.cli
 
 import java.net.URI
 import java.nio.charset.StandardCharsets
-import java.nio.file.{Files, Path}
-import java.time.format.DateTimeFormatter
-import java.time.{Duration, ZoneId}
+import java.nio.file.{Files, Path, Paths}
+import java.time.{Duration, LocalDate, Period, ZoneId}
 
 import au.id.tmm.githubprlanguagedetection.cli.CliConfig.PerformanceConfig
 import au.id.tmm.githubprlanguagedetection.github.configuration.{GitHubConfiguration, GitHubCredentials, GitHubInstance}
@@ -14,14 +13,14 @@ import cats.effect.IO
 import cats.syntax.functor.toFunctorOps
 import io.circe.Decoder
 
+import scala.util.Try
 import scala.util.matching.Regex
 
 final case class CliConfig(
   gitHubConfiguration: GitHubConfiguration,
   repositoryToScan: RepositoryName,
   performance: PerformanceConfig,
-  timeZone: Option[ZoneId],
-  reportDateTimeFormat: Option[DateTimeFormatter],
+  reportConfig: CliConfig.ReportConfig,
 )
 
 object CliConfig {
@@ -34,6 +33,20 @@ object CliConfig {
 
   object PerformanceConfig {
     implicit val decoder: Decoder[PerformanceConfig] = Decoder.forProduct3("checkoutsPerMinute", "checkoutTimeout", "languageCheckTimeout")(PerformanceConfig.apply)
+  }
+
+  final case class ReportConfig(
+    output: Path,
+    timeZone: Option[ZoneId],
+    temporalReportBinSize: Period,
+    temporalReportStartDate: LocalDate,
+    numLanguagesToBreakOut: Option[Int],
+  )
+
+  object ReportConfig {
+    private implicit val pathDecoder: Decoder[Path] = Decoder[String].emapTry(s => Try(Paths.get(s)))
+
+    implicit val decoder: Decoder[ReportConfig] = Decoder.forProduct5("output", "timeZone", "temporalReportBinSize", "temporalReportBinSize", "numLanguagesToBreakOut")(ReportConfig.apply)
   }
 
   private val REPOSITORY_NAME_PATTERN: Regex = """^(\w+)/(\w+)$""".r
@@ -71,21 +84,11 @@ object CliConfig {
     case badRepositoryName => Left(s"""Bad repository name "$badRepositoryName"""")
   }
 
-  private implicit val dateTimeFormatterDecoder: Decoder[DateTimeFormatter] = Decoder[String]
-    .emap { s =>
-      try {
-        Right(DateTimeFormatter.ofPattern(s))
-      } catch {
-        case e: IllegalArgumentException => Left(e.getMessage)
-      }
-    }
-
-  implicit val decoder: Decoder[CliConfig] = Decoder.forProduct5(
+  implicit val decoder: Decoder[CliConfig] = Decoder.forProduct4(
     "gitHubCredentials",
     "repositoryToScan",
     "performance",
-    "timeZone",
-    "reportDateTimeFormat",
+    "reportConfig",
   )(CliConfig.apply)
 
   def from(path: Path): IO[CliConfig] =

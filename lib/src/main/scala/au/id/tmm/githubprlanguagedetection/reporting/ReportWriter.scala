@@ -1,6 +1,8 @@
 package au.id.tmm.githubprlanguagedetection.reporting
 
-import java.nio.file.Path
+import java.io.OutputStream
+import java.nio.file.{Files, Path}
+import java.security.{DigestOutputStream, MessageDigest}
 import java.time.Duration
 
 import au.id.tmm.collections.NonEmptyArraySeq
@@ -20,6 +22,7 @@ import cats.effect.{IO, Timer}
 
 import scala.collection.immutable.ArraySeq
 import scala.concurrent.{duration => scaladuration}
+import scala.jdk.CollectionConverters.IteratorHasAsScala
 
 class ReportWriter(
   pullRequestLister: PullRequestLister,
@@ -101,6 +104,21 @@ class ReportWriter(
     }
   }
 
-  private def computeChecksumOfDirectory(path: Path): IO[SHA256Digest] = ???
+  private def computeChecksumOfDirectory(path: Path): IO[SHA256Digest] = IO {
+
+    val digest: MessageDigest = MessageDigest.getInstance("SHA256")
+
+    val digestOutputStream = new DigestOutputStream(OutputStream.nullOutputStream(), digest)
+
+    Files.walk(path)
+      .filter(path => Files.isRegularFile(path))
+      .iterator
+      .asScala
+      .foreach { path =>
+        Files.copy(path, digestOutputStream)
+      }
+
+    SHA256Digest(digest.digest().to(ArraySeq))
+  }
 
 }
