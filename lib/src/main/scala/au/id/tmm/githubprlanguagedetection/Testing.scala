@@ -48,7 +48,7 @@ object Testing extends IOApp {
       branchCloner = new BranchCloner(checkoutTimeout = None, configuration.credentials)
       _ <- branchCloner.useRepositoryAtRef(
         cloneUri = new URI("https://github.com/tmccarthy/tmmUtils.git"),
-        reference = "non-empty-collections",
+        reference = BranchCloner.Reference.Simple("non-empty-collections"),
       )(use)
     } yield ()
 

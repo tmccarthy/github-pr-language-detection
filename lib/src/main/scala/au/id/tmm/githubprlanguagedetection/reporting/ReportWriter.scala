@@ -6,7 +6,6 @@ import java.security.{DigestOutputStream, MessageDigest}
 import java.time.Duration
 
 import au.id.tmm.collections.NonEmptyArraySeq
-import au.id.tmm.digest4s.binarycodecs.syntax._
 import au.id.tmm.digest4s.digest.SHA256Digest
 import au.id.tmm.githubprlanguagedetection.git.BranchCloner
 import au.id.tmm.githubprlanguagedetection.github.PullRequestLister
@@ -52,7 +51,7 @@ class ReportWriter(
                   .map(_.cloneUris.https)
                   .toRight(GenericException("Head repository was deleted"))
               }
-              refToClone = pullRequest.head.ref.getOrElse(pullRequest.head.sha.asHexString)
+              refToClone = BranchCloner.Reference.PullRequestHead(pullRequest.number)
               (checksum, detectedLanguages) <- branchCloner.useRepositoryAtRef(cloneUri, refToClone) { (repositoryPath, jGit) =>
                 for {
                   detectedLanguages <- languageDetector.detectLanguages(repositoryPath)
@@ -92,6 +91,7 @@ class ReportWriter(
     }
   }
 
+  // TODO this needs to rule out things like Rich Text etc
   private def bestGuessLanguage(detectedLanguages: DetectedLanguages): Language = {
     val pluralityLanguage = detectedLanguages.results.head
     if (pluralityLanguage.language == Language("Shell")) {
