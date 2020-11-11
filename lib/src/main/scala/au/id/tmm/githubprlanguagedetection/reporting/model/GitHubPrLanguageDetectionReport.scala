@@ -151,11 +151,11 @@ object GitHubPrLanguageDetectionReport {
           row.prUrl.toString,
           row.detectedLanguage match {
             case Right(language) => language.asString
-            case Left(errorMessage) => s"Error: $errorMessage"
+            case Left(errorMessage) => s"Error: ${errorMessage.takeWhile(_ != '\n')}"
           },
           row.projectChecksum match {
             case Right(checksum) => checksum.asHexString
-            case Left(errorMessage) => s"Error: $errorMessage"
+            case Left(errorMessage) => s"Error: ${errorMessage.takeWhile(_ != '\n')}"
           },
         )
     }

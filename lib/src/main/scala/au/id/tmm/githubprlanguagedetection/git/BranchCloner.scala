@@ -5,6 +5,7 @@ import java.nio.file.{Files, Path}
 import java.time.Duration
 
 import au.id.tmm.githubprlanguagedetection.github.configuration.GitHubCredentials
+import au.id.tmm.utilities.errors.GenericException
 import cats.effect.{Bracket, IO}
 import org.apache.commons.io.FileUtils
 import org.eclipse.jgit.api.{Git => JGit}
@@ -67,6 +68,12 @@ class BranchCloner(
 
         cloneCommand
           .call()
+      }
+
+      _ <- if (repository.getRepository.getBranch != reference) {
+        IO.raiseError(GenericException("Couldn't checkout branch. It was probably deleted"))
+      } else {
+        IO.unit
       }
     } yield (tempDirectory, repository)
 
