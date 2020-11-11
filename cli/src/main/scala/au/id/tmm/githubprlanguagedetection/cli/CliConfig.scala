@@ -46,7 +46,7 @@ object CliConfig {
     implicit val decoder: Decoder[ReportConfig] = Decoder.forProduct5("output", "timeZone", "temporalReportBinSize", "temporalReportStartDate", "numLanguagesToBreakOut")(ReportConfig.apply)
   }
 
-  private val REPOSITORY_NAME_PATTERN: Regex = """^(\w+)/(\w+)$""".r
+  private val REPOSITORY_NAME_PATTERN: Regex = """^([\w-]+)/([\w-]+)$""".r
 
   private implicit val gitHubCredentialsDecoder: Decoder[GitHubCredentials] = {
     val anonymousCredentialsDecoder: Decoder[GitHubCredentials.Anonymous.type] = Decoder[String].emap {
