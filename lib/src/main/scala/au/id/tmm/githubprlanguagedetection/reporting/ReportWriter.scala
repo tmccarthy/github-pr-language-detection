@@ -51,7 +51,7 @@ class ReportWriter(
                   .map(_.cloneUris.https)
                   .toRight(GenericException("Head repository was deleted"))
               }
-              refToClone = BranchCloner.Reference.PullRequestHead(pullRequest.number)
+              refToClone = BranchCloner.Reference.GitHubPullRequestHead(pullRequest.number)
               (checksum, detectedLanguages) <- branchCloner.useRepositoryAtRef(cloneUri, refToClone) { (repositoryPath, jGit) =>
                 for {
                   detectedLanguages <- languageDetector.detectLanguages(repositoryPath)

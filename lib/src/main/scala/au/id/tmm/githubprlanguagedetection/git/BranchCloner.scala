@@ -85,18 +85,36 @@ class BranchCloner(
   private def checkoutReference(jGit: JGit, reference: Reference): IO[Unit] = {
     reference match {
       case Reference.Simple(refName) => IO(jGit.checkout().setName(refName).call()).as(())
-      case Reference.PullRequestHead(prNumber) => {
+      case Reference.GitHubPullRequestHead(prNumber) => {
         for {
+//          refs <- IO {
+//            val lsRemoteCommand = jGit.lsRemote().setRemote("origin").setHeads(false).setTags(false)
+//
+//            configureCredentials(lsRemoteCommand)
+//
+//            val refs = lsRemoteCommand.call()
+//
+//            refs
+//          }
           _ <- IO {
             val fetchCommand = jGit.fetch()
+              .setForceUpdate(true)
               .setRemote("origin")
-              .setRefSpecs(s"+refs/pull/$prNumber/head:refs/remotes/origin/pull/$prNumber/head")
+              .setRefSpecs(s"+refs/pull/*/head:refs/remotes/origin/pull/*/head")
 
             configureCredentials(fetchCommand)
 
-            fetchCommand.call()
+            val fetchResult = fetchCommand.call()
+
+            val advertisedRefs = fetchResult.getAdvertisedRefs
+            advertisedRefs
           }
-          _ <- IO(jGit.checkout().setName("refs/remotes/origin/pull/$prNumber/head").call())
+          _ <- IO {
+            val refs = jGit.getRepository.getRefDatabase.getRefs
+
+            refs
+          }
+          _ <- IO(jGit.checkout().setName(s"refs/remotes/origin/pull/$prNumber/head").call())
         } yield ()
       }
     }
@@ -118,6 +136,6 @@ object BranchCloner {
 
   object Reference {
     final case class Simple(asString: String)       extends Reference
-    final case class PullRequestHead(prNumber: Int) extends Reference
+    final case class GitHubPullRequestHead(prNumber: Int) extends Reference
   }
 }
