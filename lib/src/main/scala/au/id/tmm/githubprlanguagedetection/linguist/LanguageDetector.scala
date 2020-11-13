@@ -30,11 +30,12 @@ class LanguageDetector(
       result <- RunProcess.run(
         workingDirectory = IO.pure(path),
         timeout = timeout,
-        "github-linguist"
+        "github-linguist",
       )
-      result <- result
-        .raiseErrorForFailures[IO]
-        .wrapExceptionWithMessage(s"Failed to run github-linguist at path $path")
+      result <-
+        result
+          .raiseErrorForFailures[IO]
+          .wrapExceptionWithMessage(s"Failed to run github-linguist at path $path")
     } yield result.stdOut.asString
 
   private val LINGUIST_LINE_PATTERN: Regex = """^([\d\.]+)%\s+(.*)$""".r
@@ -51,7 +52,9 @@ class LanguageDetector(
       sortedLanguageFractions = languageFractions.sorted
 
       nonEmpty <-
-        NonEmptyArraySeq.fromIterable(sortedLanguageFractions).toRight(GenericException("Empty set of detected languages"))
+        NonEmptyArraySeq
+          .fromIterable(sortedLanguageFractions)
+          .toRight(GenericException("Empty set of detected languages"))
     } yield DetectedLanguages(nonEmpty)
 
 }

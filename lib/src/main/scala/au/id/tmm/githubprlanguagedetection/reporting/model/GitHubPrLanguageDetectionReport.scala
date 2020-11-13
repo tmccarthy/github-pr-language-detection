@@ -31,10 +31,11 @@ final case class GitHubPrLanguageDetectionReport(
     val lookup: Map[PullRequest, Language] = resultsPerPr
       .collect { case (pr, r: PullRequestResult.Success) => pr -> r }
       .safeGroupBy { case (pr, result) => result.checksum }
-      .map { case (checksum, rows) =>
-        rows.head match {
-          case (pr, result) => pr -> result.bestGuess
-        }
+      .map {
+        case (checksum, rows) =>
+          rows.head match {
+            case (pr, result) => pr -> result.bestGuess
+          }
       }
 
     resultsPerPr.flatMap { case (pr, result) => lookup.get(pr).map(detectedLanguages => pr -> detectedLanguages) }
@@ -42,21 +43,22 @@ final case class GitHubPrLanguageDetectionReport(
 
   def asCsvRows: NonEmptyArraySeq[CsvRow] =
     resultsPerPr.map {
-      case (pr, result) => CsvRow(
-        pr.number,
-        pr.whenCreated,
-        pr.whenClosed,
-        pr.title,
-        pr.htmlUrl,
-        result match {
-          case PullRequestResult.Failure(cause) => Left(cause.getMessage)
-          case PullRequestResult.Success(fullResults, bestGuess, checksum) => Right(bestGuess)
-        },
-        result match {
-          case PullRequestResult.Failure(cause) => Left(cause.getMessage)
-          case PullRequestResult.Success(fullResults, bestGuess, checksum) => Right(checksum)
-        },
-      )
+      case (pr, result) =>
+        CsvRow(
+          pr.number,
+          pr.whenCreated,
+          pr.whenClosed,
+          pr.title,
+          pr.htmlUrl,
+          result match {
+            case PullRequestResult.Failure(cause)                            => Left(cause.getMessage)
+            case PullRequestResult.Success(fullResults, bestGuess, checksum) => Right(bestGuess)
+          },
+          result match {
+            case PullRequestResult.Failure(cause)                            => Left(cause.getMessage)
+            case PullRequestResult.Success(fullResults, bestGuess, checksum) => Right(checksum)
+          },
+        )
     }
 
   def temporalReport(
@@ -83,21 +85,21 @@ final case class GitHubPrLanguageDetectionReport(
       .buffered
 
     val countsPerPeriod = binStartDates.map { binStart =>
-      binStart -> Monoid[Map[Language, Int]].combineAll(prsPerDate
-        .takeUpTo { case (d, _) => d < (binStart + binSize) }
-        .to(ArraySeq)
-        .map { case (_, counts) => counts }
+      binStart -> Monoid[Map[Language, Int]].combineAll(
+        prsPerDate
+          .takeUpTo { case (d, _) => d < (binStart + binSize) }
+          .to(ArraySeq)
+          .map { case (_, counts) => counts },
       )
     }
 
     TemporalReport(startDate, binSize, countsPerPeriod)
   }
 
-  def proportionalReport: ProportionalReport = ProportionalReport {
-    languageDetectedForDeduplicatedPrs
-      .map { case (pr, language) => language }
-      .countOccurrences
-  }
+  def proportionalReport: ProportionalReport =
+    ProportionalReport {
+      languageDetectedForDeduplicatedPrs.map { case (pr, language) => language }.countOccurrences
+    }
 
 }
 
@@ -145,16 +147,16 @@ object GitHubPrLanguageDetectionReport {
           row.prCreated.atZone(timeZone).format(dateTimeFormatter),
           row.prClosed match {
             case Some(prClosed) => prClosed.atZone(timeZone).format(dateTimeFormatter)
-            case None => ""
+            case None           => ""
           },
           row.prTitle,
           row.prUrl.toString,
           row.detectedLanguage match {
-            case Right(language) => language.asString
+            case Right(language)    => language.asString
             case Left(errorMessage) => s"Error: ${errorMessage.takeWhile(_ != '\n')}"
           },
           row.projectChecksum match {
-            case Right(checksum) => checksum.asHexString
+            case Right(checksum)    => checksum.asHexString
             case Left(errorMessage) => s"Error: ${errorMessage.takeWhile(_ != '\n')}"
           },
         )
@@ -169,7 +171,6 @@ object GitHubPrLanguageDetectionReport {
   final case class TemporalReport(
     startDate: LocalDate,
     binSize: Period,
-
     countsPerPeriod: ArraySeq[LocalDate -> Map[Language, Int]],
   )
 

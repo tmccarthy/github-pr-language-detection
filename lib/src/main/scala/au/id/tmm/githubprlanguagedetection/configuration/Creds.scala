@@ -18,7 +18,7 @@ object Creds {
   def from(path: Path): IO[Creds] =
     for {
       properties <- Bracket[IO, Throwable].bracket(IO(Files.newInputStream(path)))(propsFrom)(is => IO(is.close()))
-      creds <- IO.fromEither(Creds.from(properties))
+      creds      <- IO.fromEither(Creds.from(properties))
     } yield creds
 
   private def propsFrom(is: InputStream): IO[Properties] = {
@@ -31,7 +31,7 @@ object Creds {
     val propertiesMap: collection.Map[String, String] = properties.asScala
 
     for {
-      gitHubUserName <- propertiesMap.get("username").toRight(GenericException("No username"))
+      gitHubUserName            <- propertiesMap.get("username").toRight(GenericException("No username"))
       gitHubPersonalAccessToken <- propertiesMap.get("personal_access_token").toRight(GenericException("No token"))
     } yield Creds(gitHubUserName, gitHubPersonalAccessToken)
 

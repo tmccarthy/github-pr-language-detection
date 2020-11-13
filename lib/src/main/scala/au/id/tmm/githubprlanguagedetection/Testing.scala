@@ -61,11 +61,12 @@ object Testing extends IOApp {
 
   private def printDetectedLanguages(repoPath: Path, jgit: JGit): IO[Unit] =
     for {
-      languageDetector <- IO.pure(new LanguageDetector(timeout = None))
+      languageDetector  <- IO.pure(new LanguageDetector(timeout = None))
       detectedLanguages <- languageDetector.detectLanguages(repoPath)
       _ <- IO {
         detectedLanguages.results.foreach {
-          case DetectedLanguages.LanguageFraction(language, fraction) => println(s"${fraction.asDouble} -> ${language.asString}")
+          case DetectedLanguages.LanguageFraction(language, fraction) =>
+            println(s"${fraction.asDouble} -> ${language.asString}")
         }
       }
     } yield ()

@@ -4,6 +4,7 @@ import java.net.URI
 import java.time.Instant
 
 final case class PullRequest(
+  repository: Repository,
   number: Int,
   whenCreated: Instant,
   whenClosed: Option[Instant],

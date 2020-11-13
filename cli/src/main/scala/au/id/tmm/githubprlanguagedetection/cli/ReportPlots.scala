@@ -19,8 +19,7 @@ object ReportPlots {
     config: ReportConfig,
   ): Plot = {
 
-    val languagesToBreakOut: DupelessSeq[Language] = report.proportionalReport
-      .countsPerLanguage
+    val languagesToBreakOut: DupelessSeq[Language] = report.proportionalReport.countsPerLanguage
       .to(ArraySeq)
       .sortBy { case (language, count) => count }
       .map { case (language, count) => language }
@@ -34,10 +33,12 @@ object ReportPlots {
     implicit val orderLanguagesForPlot: Ordering[LanguageForPlot] = {
       val languageIndexes = languagesToBreakOut.zipWithIndex.toMap
 
-      Ordering.by[LanguageForPlot, Int] {
-        case LanguageForPlot.Of(lang) => languageIndexes.getOrElse(lang, Int.MinValue)
-        case LanguageForPlot.Others => Int.MinValue
-      }.reverse
+      Ordering
+        .by[LanguageForPlot, Int] {
+          case LanguageForPlot.Of(lang) => languageIndexes.getOrElse(lang, Int.MinValue)
+          case LanguageForPlot.Others   => Int.MinValue
+        }
+        .reverse
     }
 
     val temporalReport = report.temporalReport(
@@ -46,22 +47,20 @@ object ReportPlots {
       config.timeZone.getOrElse(ZoneId.systemDefault()),
     )
 
-    val (dates, countsPerDate) = temporalReport
-      .countsPerPeriod
-      .map {
-        case (date, countsPerLanguage) => date ->
+    val (dates, countsPerDate) = temporalReport.countsPerPeriod.map {
+      case (date, countsPerLanguage) =>
+        date ->
           countsPerLanguage
             .groupMap[LanguageForPlot, Int] {
               case (language, count) if languagesToBreakOut.contains(language) => LanguageForPlot.Of(language)
-              case (language, count) => LanguageForPlot.Others
+              case (language, count)                                           => LanguageForPlot.Others
             } {
               case (language, count) => count
             }
             .map {
               case (languageForPlot, counts) => languageForPlot -> counts.sum
             }
-      }
-      .unzip
+    }.unzip
 
     val traces = languagesForPlot.sorted.map { language =>
       Trace(
@@ -76,8 +75,8 @@ object ReportPlots {
       traces,
       layout = Layout(
         title = Layout.Title(
-          text = s"Languages for pull requests over time"
-        )
+          text = s"Languages for pull requests over time",
+        ),
       ),
     )
   }
@@ -87,7 +86,7 @@ object ReportPlots {
   private object LanguageForPlot {
 
     final case class Of(language: Language) extends LanguageForPlot
-    final case object Others            extends LanguageForPlot
+    final case object Others                extends LanguageForPlot
 
   }
 

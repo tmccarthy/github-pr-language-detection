@@ -26,12 +26,16 @@ object CliConfig {
 
   final case class PerformanceConfig(
     checkoutsPerMinute: Int,
+    maxConcurrent: Int,
     checkoutTimeout: Duration,
     languageCheckTimeout: Option[Duration],
   )
 
   object PerformanceConfig {
-    implicit val decoder: Decoder[PerformanceConfig] = Decoder.forProduct3("checkoutsPerMinute", "checkoutTimeout", "languageCheckTimeout")(PerformanceConfig.apply)
+    implicit val decoder: Decoder[PerformanceConfig] =
+      Decoder.forProduct4("checkoutsPerMinute", "maxConcurrent", "checkoutTimeout", "languageCheckTimeout")(
+        PerformanceConfig.apply,
+      )
   }
 
   final case class ReportConfig(
@@ -43,7 +47,13 @@ object CliConfig {
   )
 
   object ReportConfig {
-    implicit val decoder: Decoder[ReportConfig] = Decoder.forProduct5("output", "timeZone", "temporalReportBinSize", "temporalReportStartDate", "numLanguagesToBreakOut")(ReportConfig.apply)
+    implicit val decoder: Decoder[ReportConfig] = Decoder.forProduct5(
+      "output",
+      "timeZone",
+      "temporalReportBinSize",
+      "temporalReportStartDate",
+      "numLanguagesToBreakOut",
+    )(ReportConfig.apply)
   }
 
   private val REPOSITORY_NAME_PATTERN: Regex = """^([\w-]+)/([\w-]+)$""".r
@@ -78,7 +88,7 @@ object CliConfig {
 
   private implicit val gitHubRepositoryNameDecoder: Decoder[RepositoryName] = Decoder[String].emap {
     case REPOSITORY_NAME_PATTERN(owner, repo) => Right(RepositoryName(owner, repo))
-    case badRepositoryName => Left(s"""Bad repository name "$badRepositoryName"""")
+    case badRepositoryName                    => Left(s"""Bad repository name "$badRepositoryName"""")
   }
 
   implicit val decoder: Decoder[CliConfig] = Decoder.forProduct4(

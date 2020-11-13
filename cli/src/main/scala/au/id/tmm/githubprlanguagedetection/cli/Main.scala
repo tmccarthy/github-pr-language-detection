@@ -17,8 +17,8 @@ object Main extends IOApp {
   override def run(args: List[String]): IO[ExitCode] =
     for {
       rawConfigFilePath <- IO.fromEither(args.onlyElementOrException)
-      configFilePath <- IO(Paths.get(rawConfigFilePath))
-      cliConfig <- CliConfig.from(configFilePath)
+      configFilePath    <- IO(Paths.get(rawConfigFilePath))
+      cliConfig         <- CliConfig.from(configFilePath)
 
       pullRequestLister = new PullRequestLister(cliConfig.gitHubConfiguration)
       branchCloner = new BranchCloner(
@@ -31,6 +31,7 @@ object Main extends IOApp {
 
       report <- reportWriter.produceGitHubPrLanguageDetectionReport(
         cliConfig.performance.checkoutsPerMinute,
+        cliConfig.performance.maxConcurrent,
         cliConfig.repositoryToScan,
       )
 
@@ -39,14 +40,17 @@ object Main extends IOApp {
       _ <- Bracket[IO, Throwable].bracket(
         acquire = IO(CSVWriter.open(csvOutputFile.toFile)(new DefaultCSVFormat {})),
       )(
-        use = csvWriter => IO {
-          csvWriter.writeAll(
-            report.asEncodedCsvRows(
-              cliConfig.reportConfig.timeZone.getOrElse(ZoneId.systemDefault()),
-              DateTimeFormatter.ISO_LOCAL_DATE,
-            ).toSeq,
-          )
-        },
+        use = csvWriter =>
+          IO {
+            csvWriter.writeAll(
+              report
+                .asEncodedCsvRows(
+                  cliConfig.reportConfig.timeZone.getOrElse(ZoneId.systemDefault()),
+                  DateTimeFormatter.ISO_LOCAL_DATE,
+                )
+                .toSeq,
+            )
+          },
       )(
         release = csvWriter => IO(csvWriter.close()),
       )

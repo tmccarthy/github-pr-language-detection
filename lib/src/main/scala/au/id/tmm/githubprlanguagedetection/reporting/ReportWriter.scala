@@ -18,7 +18,7 @@ import au.id.tmm.githubprlanguagedetection.reporting.model.GitHubPrLanguageDetec
 import au.id.tmm.intime.std.syntax.all._
 import au.id.tmm.utilities.errors.{ExceptionOr, GenericException}
 import au.id.tmm.utilities.syntax.tuples.->
-import cats.effect.{IO, Timer}
+import cats.effect.{Concurrent, IO, Timer}
 import org.slf4j.{Logger, LoggerFactory}
 
 import scala.collection.immutable.ArraySeq
@@ -29,12 +29,14 @@ class ReportWriter(
   pullRequestLister: PullRequestLister,
   branchCloner: BranchCloner,
   languageDetector: LanguageDetector,
-)(
-  implicit timer: Timer[IO],
+)(implicit
+  timer: Timer[IO],
+  concurrent: Concurrent[IO],
 ) {
 
   def produceGitHubPrLanguageDetectionReport(
     checkoutsPerMinute: Int,
+    maxConcurrent: Int,
     repository: RepositoryName,
   ): IO[GitHubPrLanguageDetectionReport] =
     for {
@@ -44,32 +46,37 @@ class ReportWriter(
 
       detectedLanguagesPerPullRequest <-
         streamThatEmitsEvery(pullRequests, delayBetweenCheckouts)
-          .evalMap { pullRequest =>
+          .parEvalMap(maxConcurrent) { pullRequest =>
             val resultIO: IO[(SHA256Digest, DetectedLanguages)] = for {
-              cloneUri <- IO.fromEither {
-                pullRequest.head.repository
-                  .map(_.cloneUris.https)
-                  .toRight(GenericException("Head repository was deleted"))
-              }
+              cloneUri <- IO.pure(pullRequest.repository.cloneUris.https)
               refToClone = BranchCloner.Reference.GitHubPullRequestHead(pullRequest.number)
-              (checksum, detectedLanguages) <- branchCloner.useRepositoryAtRef(cloneUri, refToClone) { (repositoryPath, jGit) =>
-                for {
-                  detectedLanguages <- languageDetector.detectLanguages(repositoryPath)
-                  checksum <- computeChecksumOfDirectory(repositoryPath)
-                } yield (checksum, detectedLanguages)
+              (checksum, detectedLanguages) <- branchCloner.useRepositoryAtRef(cloneUri, refToClone) {
+                (repositoryPath, jGit) =>
+                  for {
+                    detectedLanguages <- languageDetector.detectLanguages(repositoryPath)
+                    checksum          <- computeChecksumOfDirectory(repositoryPath)
+                  } yield (checksum, detectedLanguages)
               }
             } yield (checksum, detectedLanguages)
 
             resultIO.attempt.flatMap {
-              case Left(e: Exception) => IO(LOGGER.error(s"Failed to parse languages for #${pullRequest.number}", e)).as(pullRequest -> Left(e))
+              case Left(e: Exception) =>
+                IO(LOGGER.error(s"Failed to parse languages for #${pullRequest.number}", e)).as(pullRequest -> Left(e))
               case Left(t: Throwable) => IO.raiseError(t)
-              case Right(result) => IO(LOGGER.error(s"Parsed languages for #${pullRequest.number}. First was ${result._2.results.head.language.asString}")).as(pullRequest -> Right(result))
+              case Right(result) =>
+                IO(
+                  LOGGER.info(
+                    s"Parsed languages for #${pullRequest.number}. First was ${result._2.results.head.language.asString}",
+                  ),
+                ).as(pullRequest -> Right(result))
             }
           }
           .compile
           .to(ArraySeq)
 
-      nonEmptyDetectedLanguagesPerPullRequest <- IO.fromEither(NonEmptyArraySeq.fromArraySeq(detectedLanguagesPerPullRequest).toRight(GenericException("No prs")))
+      nonEmptyDetectedLanguagesPerPullRequest <- IO.fromEither(
+        NonEmptyArraySeq.fromArraySeq(detectedLanguagesPerPullRequest).toRight(GenericException("No prs")),
+      )
 
       report = makeIntoReport(nonEmptyDetectedLanguagesPerPullRequest)
 
@@ -82,21 +89,24 @@ class ReportWriter(
 
   private def makeIntoReport(
     resultsPerPr: NonEmptyArraySeq[PullRequest -> ExceptionOr[(SHA256Digest, DetectedLanguages)]],
-  ): GitHubPrLanguageDetectionReport = GitHubPrLanguageDetectionReport {
-    resultsPerPr.map[PullRequest -> PullRequestResult] {
-      case (pr, Right((checksum, detectedLanguages))) =>
-        pr -> (PullRequestResult.Success(detectedLanguages, bestGuessLanguage(detectedLanguages), checksum): PullRequestResult)
-      case (pr, Left(e)) =>
-        pr -> (PullRequestResult.Failure(e): PullRequestResult)
+  ): GitHubPrLanguageDetectionReport =
+    GitHubPrLanguageDetectionReport {
+      resultsPerPr.map[PullRequest -> PullRequestResult] {
+        case (pr, Right((checksum, detectedLanguages))) =>
+          pr -> (PullRequestResult
+            .Success(detectedLanguages, bestGuessLanguage(detectedLanguages), checksum): PullRequestResult)
+        case (pr, Left(e)) =>
+          pr -> (PullRequestResult.Failure(e): PullRequestResult)
+      }
     }
-  }
 
   // TODO this needs to rule out things like Rich Text etc
   private def bestGuessLanguage(detectedLanguages: DetectedLanguages): Language = {
     val pluralityLanguage = detectedLanguages.results.head
     if (pluralityLanguage.language == Language("Shell")) {
       detectedLanguages.results.underlying.lift(1) match {
-        case Some(DetectedLanguages.LanguageFraction(secondLanguage, fraction)) if fraction > Fraction(0.2) => secondLanguage
+        case Some(DetectedLanguages.LanguageFraction(secondLanguage, fraction)) if fraction > Fraction(0.2) =>
+          secondLanguage
         case _ => pluralityLanguage.language
       }
     } else {
@@ -104,22 +114,24 @@ class ReportWriter(
     }
   }
 
-  private def computeChecksumOfDirectory(path: Path): IO[SHA256Digest] = IO {
+  private def computeChecksumOfDirectory(path: Path): IO[SHA256Digest] =
+    IO {
 
-    val digest: MessageDigest = MessageDigest.getInstance("SHA-256")
+      val digest: MessageDigest = MessageDigest.getInstance("SHA-256")
 
-    val digestOutputStream = new DigestOutputStream(OutputStream.nullOutputStream(), digest)
+      val digestOutputStream = new DigestOutputStream(OutputStream.nullOutputStream(), digest)
 
-    Files.walk(path)
-      .filter(path => Files.isRegularFile(path))
-      .iterator
-      .asScala
-      .foreach { path =>
-        Files.copy(path, digestOutputStream)
-      }
+      Files
+        .walk(path)
+        .filter(path => Files.isRegularFile(path))
+        .iterator
+        .asScala
+        .foreach { path =>
+          Files.copy(path, digestOutputStream)
+        }
 
-    SHA256Digest(new ArraySeq.ofByte(digest.digest()))
-  }
+      SHA256Digest(new ArraySeq.ofByte(digest.digest()))
+    }
 
 }
 

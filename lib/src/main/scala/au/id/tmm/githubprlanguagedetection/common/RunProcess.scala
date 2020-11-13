@@ -17,7 +17,7 @@ object RunProcess {
   def run(
     workingDirectory: IO[Path],
     timeout: Option[Duration],
-    command: String*
+    command: String*,
   ): IO[Result] =
     for {
       workingDirectory <- workingDirectory
@@ -26,10 +26,10 @@ object RunProcess {
           .command(command: _*)
           .directory(workingDirectory.toFile)
       }
-      process <- IO(processBuilder.start())
-      _       <- waitFor(process, timeout)
-      stdErr <- IO(new String(process.getErrorStream.readAllBytes(), StandardCharsets.UTF_8)).map(StdErr.apply)
-      stdOut <- IO(new String(process.getInputStream.readAllBytes(), StandardCharsets.UTF_8)).map(StdOut.apply)
+      process  <- IO(processBuilder.start())
+      _        <- waitFor(process, timeout)
+      stdErr   <- IO(new String(process.getErrorStream.readAllBytes(), StandardCharsets.UTF_8)).map(StdErr.apply)
+      stdOut   <- IO(new String(process.getInputStream.readAllBytes(), StandardCharsets.UTF_8)).map(StdOut.apply)
       exitCode <- IO(process.exitValue()).map(ExitCode.apply)
     } yield Result(exitCode, stdErr, stdOut)
 
