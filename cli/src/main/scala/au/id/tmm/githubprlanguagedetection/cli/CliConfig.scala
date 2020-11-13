@@ -8,6 +8,7 @@ import java.time.{Duration, LocalDate, Period, ZoneId}
 import au.id.tmm.githubprlanguagedetection.cli.CliConfig.PerformanceConfig
 import au.id.tmm.githubprlanguagedetection.github.configuration.{GitHubConfiguration, GitHubCredentials, GitHubInstance}
 import au.id.tmm.githubprlanguagedetection.github.model.RepositoryName
+import au.id.tmm.githubprlanguagedetection.linguist.model.Language
 import au.id.tmm.utilities.errors.ExceptionOr
 import cats.effect.IO
 import cats.syntax.functor.toFunctorOps
@@ -44,15 +45,19 @@ object CliConfig {
     temporalReportBinSize: Period,
     temporalReportStartDate: LocalDate,
     numLanguagesToBreakOut: Option[Int],
+    languagesToIgnoreIfPossible: Set[Language],
   )
 
   object ReportConfig {
-    implicit val decoder: Decoder[ReportConfig] = Decoder.forProduct5(
+    private implicit val languageDecoder: Decoder[Language] = Decoder[String].map(Language.apply)
+
+    implicit val decoder: Decoder[ReportConfig] = Decoder.forProduct6(
       "output",
       "timeZone",
       "temporalReportBinSize",
       "temporalReportStartDate",
       "numLanguagesToBreakOut",
+      "languagesToIgnoreIfPossible",
     )(ReportConfig.apply)
   }
 

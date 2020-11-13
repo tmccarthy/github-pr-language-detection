@@ -3,7 +3,8 @@ package au.id.tmm.githubprlanguagedetection.linguist.model
 import au.id.tmm.collections.NonEmptyArraySeq
 
 final case class DetectedLanguages(
-  results: NonEmptyArraySeq[DetectedLanguages.LanguageFraction],
+  all: NonEmptyArraySeq[DetectedLanguages.LanguageFraction],
+  mainLanguage: Language,
 )
 
 object DetectedLanguages {

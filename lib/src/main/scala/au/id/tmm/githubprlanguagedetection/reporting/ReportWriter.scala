@@ -11,7 +11,7 @@ import au.id.tmm.githubprlanguagedetection.git.BranchCloner
 import au.id.tmm.githubprlanguagedetection.github.PullRequestLister
 import au.id.tmm.githubprlanguagedetection.github.model.{PullRequest, RepositoryName}
 import au.id.tmm.githubprlanguagedetection.linguist.LanguageDetector
-import au.id.tmm.githubprlanguagedetection.linguist.model.{DetectedLanguages, Fraction, Language}
+import au.id.tmm.githubprlanguagedetection.linguist.model.DetectedLanguages
 import au.id.tmm.githubprlanguagedetection.reporting.ReportWriter.LOGGER
 import au.id.tmm.githubprlanguagedetection.reporting.model.GitHubPrLanguageDetectionReport
 import au.id.tmm.githubprlanguagedetection.reporting.model.GitHubPrLanguageDetectionReport.PullRequestResult
@@ -66,7 +66,7 @@ class ReportWriter(
               case Right(result) =>
                 IO(
                   LOGGER.info(
-                    s"Parsed languages for #${pullRequest.number}. First was ${result._2.results.head.language.asString}",
+                    s"Parsed languages for #${pullRequest.number}. First was ${result._2.all.head.language.asString}",
                   ),
                 ).as(pullRequest -> Right(result))
             }
@@ -94,25 +94,11 @@ class ReportWriter(
       resultsPerPr.map[PullRequest -> PullRequestResult] {
         case (pr, Right((checksum, detectedLanguages))) =>
           pr -> (PullRequestResult
-            .Success(detectedLanguages, bestGuessLanguage(detectedLanguages), checksum): PullRequestResult)
+            .Success(detectedLanguages, checksum): PullRequestResult)
         case (pr, Left(e)) =>
           pr -> (PullRequestResult.Failure(e): PullRequestResult)
       }
     }
-
-  // TODO this needs to rule out things like Rich Text etc
-  private def bestGuessLanguage(detectedLanguages: DetectedLanguages): Language = {
-    val pluralityLanguage = detectedLanguages.results.head
-    if (pluralityLanguage.language == Language("Shell")) {
-      detectedLanguages.results.underlying.lift(1) match {
-        case Some(DetectedLanguages.LanguageFraction(secondLanguage, fraction)) if fraction > Fraction(0.2) =>
-          secondLanguage
-        case _ => pluralityLanguage.language
-      }
-    } else {
-      pluralityLanguage.language
-    }
-  }
 
   private def computeChecksumOfDirectory(path: Path): IO[SHA256Digest] =
     IO {

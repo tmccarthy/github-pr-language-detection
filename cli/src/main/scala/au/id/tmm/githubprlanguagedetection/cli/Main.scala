@@ -25,7 +25,10 @@ object Main extends IOApp {
         Some(cliConfig.performance.checkoutTimeout),
         cliConfig.gitHubConfiguration.credentials,
       )
-      languageDetector = new LanguageDetector(cliConfig.performance.languageCheckTimeout)
+      languageDetector = new LanguageDetector(
+        cliConfig.performance.languageCheckTimeout,
+        cliConfig.reportConfig.languagesToIgnoreIfPossible,
+      )
 
       reportWriter = new ReportWriter(pullRequestLister, branchCloner, languageDetector)
 

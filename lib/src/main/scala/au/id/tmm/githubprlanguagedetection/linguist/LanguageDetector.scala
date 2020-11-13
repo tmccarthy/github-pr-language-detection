@@ -5,6 +5,7 @@ import java.time.Duration
 
 import au.id.tmm.collections.NonEmptyArraySeq
 import au.id.tmm.githubprlanguagedetection.common.RunProcess
+import au.id.tmm.githubprlanguagedetection.linguist.model.DetectedLanguages.LanguageFraction
 import au.id.tmm.githubprlanguagedetection.linguist.model.{DetectedLanguages, Fraction, Language}
 import au.id.tmm.utilities.cats.syntax.all.toMonadErrorSyntax
 import au.id.tmm.utilities.errors.{ExceptionOr, GenericException}
@@ -17,6 +18,7 @@ import scala.util.matching.Regex
 
 class LanguageDetector(
   timeout: Option[Duration],
+  languagesToIgnoreIfPossible: Set[Language],
 ) {
 
   def detectLanguages(path: Path): IO[DetectedLanguages] =
@@ -55,6 +57,17 @@ class LanguageDetector(
         NonEmptyArraySeq
           .fromIterable(sortedLanguageFractions)
           .toRight(GenericException("Empty set of detected languages"))
-    } yield DetectedLanguages(nonEmpty)
+
+      mainLanguage = chooseMainLanguage(nonEmpty)
+    } yield DetectedLanguages(nonEmpty, mainLanguage)
+
+  private def chooseMainLanguage(
+    allDetectedLanguages: NonEmptyArraySeq[DetectedLanguages.LanguageFraction],
+  ): Language =
+    allDetectedLanguages
+      .collectFirst {
+        case LanguageFraction(language, fraction) if !languagesToIgnoreIfPossible.contains(language) => language
+      }
+      .getOrElse(allDetectedLanguages.head.language)
 
 }

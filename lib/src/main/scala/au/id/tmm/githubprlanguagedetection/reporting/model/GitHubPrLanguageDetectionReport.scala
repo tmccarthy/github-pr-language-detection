@@ -34,7 +34,7 @@ final case class GitHubPrLanguageDetectionReport(
       .map {
         case (checksum, rows) =>
           rows.head match {
-            case (pr, result) => pr -> result.bestGuess
+            case (pr, result) => pr -> result.detectedLanguages.mainLanguage
           }
       }
 
@@ -51,12 +51,12 @@ final case class GitHubPrLanguageDetectionReport(
           pr.title,
           pr.htmlUrl,
           result match {
-            case PullRequestResult.Failure(cause)                            => Left(cause.getMessage)
-            case PullRequestResult.Success(fullResults, bestGuess, checksum) => Right(bestGuess)
+            case PullRequestResult.Failure(cause)                       => Left(cause.getMessage)
+            case PullRequestResult.Success(detectedLanguages, checksum) => Right(detectedLanguages.mainLanguage)
           },
           result match {
-            case PullRequestResult.Failure(cause)                            => Left(cause.getMessage)
-            case PullRequestResult.Success(fullResults, bestGuess, checksum) => Right(checksum)
+            case PullRequestResult.Failure(cause)                 => Left(cause.getMessage)
+            case PullRequestResult.Success(fullResults, checksum) => Right(checksum)
           },
         )
     }
@@ -113,7 +113,6 @@ object GitHubPrLanguageDetectionReport {
 
     final case class Success(
       detectedLanguages: DetectedLanguages,
-      bestGuess: Language,
       checksum: SHA256Digest,
     ) extends PullRequestResult
 
