@@ -66,7 +66,7 @@ class ReportWriter(
               case Right(result) =>
                 IO(
                   LOGGER.info(
-                    s"Parsed languages for #${pullRequest.number}. First was ${result._2.all.head.language.asString}",
+                    s"Parsed languages for #${pullRequest.number}. Main language was ${result._2.mainLanguage.asString}",
                   ),
                 ).as(pullRequest -> Right(result))
             }
