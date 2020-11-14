@@ -26,7 +26,7 @@ object Main extends IOApp {
         Some(cliConfig.performance.checkoutTimeout),
         cliConfig.gitHubConfiguration.credentials,
       )
-      languageDetector = new LanguageDetector(
+      languageDetector <- LanguageDetector(
         cliConfig.performance.languageCheckTimeout,
         cliConfig.reportConfig.languagesToIgnoreIfPossible,
       )

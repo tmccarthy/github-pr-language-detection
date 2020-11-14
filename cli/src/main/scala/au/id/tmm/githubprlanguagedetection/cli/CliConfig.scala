@@ -45,12 +45,10 @@ object CliConfig {
     temporalReportBinSize: Period,
     temporalReportStartDate: LocalDate,
     numLanguagesToBreakOut: Option[Int],
-    languagesToIgnoreIfPossible: Set[Language],
+    languagesToIgnoreIfPossible: Set[Language.Name],
   )
 
   object ReportConfig {
-    private implicit val languageDecoder: Decoder[Language] = Decoder[String].map(Language.apply)
-
     implicit val decoder: Decoder[ReportConfig] = Decoder.forProduct6(
       "output",
       "timeZone",

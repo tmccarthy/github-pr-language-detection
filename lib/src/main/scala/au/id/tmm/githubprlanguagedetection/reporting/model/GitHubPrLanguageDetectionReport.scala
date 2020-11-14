@@ -34,7 +34,7 @@ final case class GitHubPrLanguageDetectionReport(
       .map {
         case (checksum, rows) =>
           rows.head match {
-            case (pr, result) => pr -> result.detectedLanguages.mainLanguage
+            case (pr, result) => pr -> result.detectedLanguages.mainProgrammingLanguage
           }
       }
 
@@ -51,8 +51,9 @@ final case class GitHubPrLanguageDetectionReport(
           pr.title,
           pr.htmlUrl,
           result match {
-            case PullRequestResult.Failure(cause)                       => Left(cause.getMessage)
-            case PullRequestResult.Success(detectedLanguages, checksum) => Right(detectedLanguages.mainLanguage)
+            case PullRequestResult.Failure(cause) => Left(cause.getMessage)
+            case PullRequestResult.Success(detectedLanguages, checksum) =>
+              Right(detectedLanguages.mainProgrammingLanguage)
           },
           result match {
             case PullRequestResult.Failure(cause)                 => Left(cause.getMessage)
@@ -151,7 +152,7 @@ object GitHubPrLanguageDetectionReport {
           row.prTitle,
           row.prUrl.toString,
           row.detectedLanguage match {
-            case Right(language)    => language.asString
+            case Right(language)    => language.name.asString
             case Left(errorMessage) => s"Error: ${errorMessage.takeWhile(_ != '\n')}"
           },
           row.projectChecksum match {

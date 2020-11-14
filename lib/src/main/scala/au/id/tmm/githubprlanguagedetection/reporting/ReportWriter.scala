@@ -49,10 +49,13 @@ class ReportWriter(
             val resultIO: IO[(SHA256Digest, DetectedLanguages)] = for {
               cloneUri <- IO.pure(pullRequest.repository.cloneUris.https)
               refToClone = BranchCloner.Reference.GitHubPullRequestHead(pullRequest.number)
-              (checksum, detectedLanguages) <- branchCloner
-                .useRepositoryAtRef(cloneUri, refToClone) { (repositoryPath, jGit) =>
-                  directoryDigester.digestFor(repositoryPath) parProduct languageDetector.detectLanguages(repositoryPath)
-                }
+              (checksum, detectedLanguages) <-
+                branchCloner
+                  .useRepositoryAtRef(cloneUri, refToClone) { (repositoryPath, jGit) =>
+                    directoryDigester.digestFor(repositoryPath) parProduct languageDetector.detectLanguages(
+                      repositoryPath,
+                    )
+                  }
             } yield (checksum, detectedLanguages)
 
             resultIO.attempt.flatMap {
@@ -62,7 +65,7 @@ class ReportWriter(
               case Right(result) =>
                 IO(
                   LOGGER.info(
-                    s"Parsed languages for #${pullRequest.number}. Main language was ${result._2.mainLanguage.asString}",
+                    s"Parsed languages for #${pullRequest.number}. Main language was ${result._2.mainProgrammingLanguage.name.asString}",
                   ),
                 ).as(pullRequest -> Right(result))
             }

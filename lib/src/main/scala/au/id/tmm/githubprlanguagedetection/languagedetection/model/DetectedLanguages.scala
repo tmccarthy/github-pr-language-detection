@@ -4,7 +4,7 @@ import au.id.tmm.collections.NonEmptyArraySeq
 
 final case class DetectedLanguages(
   all: NonEmptyArraySeq[DetectedLanguages.LanguageFraction],
-  mainLanguage: Language,
+  mainProgrammingLanguage: Language,
 )
 
 object DetectedLanguages {
