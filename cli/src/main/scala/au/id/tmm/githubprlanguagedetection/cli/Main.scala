@@ -8,7 +8,7 @@ import au.id.tmm.collections.syntax.toIterableOps
 import au.id.tmm.githubprlanguagedetection.common.DirectoryDigester
 import au.id.tmm.githubprlanguagedetection.git.BranchCloner
 import au.id.tmm.githubprlanguagedetection.github.PullRequestLister
-import au.id.tmm.githubprlanguagedetection.linguist.LanguageDetector
+import au.id.tmm.githubprlanguagedetection.languagedetection.LanguageDetector
 import au.id.tmm.githubprlanguagedetection.reporting.ReportWriter
 import cats.effect.{Bracket, ExitCode, IO, IOApp}
 import com.github.tototoshi.csv.{CSVWriter, DefaultCSVFormat}

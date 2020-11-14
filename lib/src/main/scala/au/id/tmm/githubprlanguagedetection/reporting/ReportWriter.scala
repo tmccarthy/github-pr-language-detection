@@ -8,8 +8,8 @@ import au.id.tmm.githubprlanguagedetection.common.DirectoryDigester
 import au.id.tmm.githubprlanguagedetection.git.BranchCloner
 import au.id.tmm.githubprlanguagedetection.github.PullRequestLister
 import au.id.tmm.githubprlanguagedetection.github.model.{PullRequest, RepositoryName}
-import au.id.tmm.githubprlanguagedetection.linguist.LanguageDetector
-import au.id.tmm.githubprlanguagedetection.linguist.model.DetectedLanguages
+import au.id.tmm.githubprlanguagedetection.languagedetection.LanguageDetector
+import au.id.tmm.githubprlanguagedetection.languagedetection.model.DetectedLanguages
 import au.id.tmm.githubprlanguagedetection.reporting.ReportWriter.LOGGER
 import au.id.tmm.githubprlanguagedetection.reporting.model.GitHubPrLanguageDetectionReport
 import au.id.tmm.githubprlanguagedetection.reporting.model.GitHubPrLanguageDetectionReport.PullRequestResult

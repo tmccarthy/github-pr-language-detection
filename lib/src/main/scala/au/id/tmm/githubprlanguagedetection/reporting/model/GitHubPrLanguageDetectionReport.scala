@@ -9,7 +9,7 @@ import au.id.tmm.collections.syntax._
 import au.id.tmm.digest4s.binarycodecs.syntax._
 import au.id.tmm.digest4s.digest.SHA256Digest
 import au.id.tmm.githubprlanguagedetection.github.model.PullRequest
-import au.id.tmm.githubprlanguagedetection.linguist.model.{DetectedLanguages, Language}
+import au.id.tmm.githubprlanguagedetection.languagedetection.model.{DetectedLanguages, Language}
 import au.id.tmm.githubprlanguagedetection.reporting.model.GitHubPrLanguageDetectionReport._
 import au.id.tmm.intime.std.syntax.all._
 import au.id.tmm.utilities.errors.ErrorMessageOr

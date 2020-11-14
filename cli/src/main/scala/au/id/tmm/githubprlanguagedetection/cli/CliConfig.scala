@@ -8,7 +8,7 @@ import java.time.{Duration, LocalDate, Period, ZoneId}
 import au.id.tmm.githubprlanguagedetection.cli.CliConfig.PerformanceConfig
 import au.id.tmm.githubprlanguagedetection.github.configuration.{GitHubConfiguration, GitHubCredentials, GitHubInstance}
 import au.id.tmm.githubprlanguagedetection.github.model.RepositoryName
-import au.id.tmm.githubprlanguagedetection.linguist.model.Language
+import au.id.tmm.githubprlanguagedetection.languagedetection.model.Language
 import au.id.tmm.utilities.errors.ExceptionOr
 import cats.effect.IO
 import cats.syntax.functor.toFunctorOps

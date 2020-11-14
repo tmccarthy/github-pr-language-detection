@@ -1,12 +1,12 @@
-package au.id.tmm.githubprlanguagedetection.linguist
+package au.id.tmm.githubprlanguagedetection.languagedetection
 
 import java.nio.file.Path
 import java.time.Duration
 
 import au.id.tmm.collections.NonEmptyArraySeq
 import au.id.tmm.githubprlanguagedetection.common.RunProcess
-import au.id.tmm.githubprlanguagedetection.linguist.model.DetectedLanguages.LanguageFraction
-import au.id.tmm.githubprlanguagedetection.linguist.model.{DetectedLanguages, Fraction, Language}
+import au.id.tmm.githubprlanguagedetection.languagedetection.model.DetectedLanguages.LanguageFraction
+import au.id.tmm.githubprlanguagedetection.languagedetection.model.{DetectedLanguages, Fraction, Language}
 import au.id.tmm.utilities.cats.syntax.all.toMonadErrorSyntax
 import au.id.tmm.utilities.errors.{ExceptionOr, GenericException}
 import cats.effect.IO

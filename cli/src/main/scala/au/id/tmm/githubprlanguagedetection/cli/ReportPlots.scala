@@ -4,7 +4,7 @@ import java.time.ZoneId
 
 import au.id.tmm.collections.DupelessSeq
 import au.id.tmm.githubprlanguagedetection.cli.CliConfig.ReportConfig
-import au.id.tmm.githubprlanguagedetection.linguist.model.Language
+import au.id.tmm.githubprlanguagedetection.languagedetection.model.Language
 import au.id.tmm.githubprlanguagedetection.reporting.model.GitHubPrLanguageDetectionReport
 import au.id.tmm.plotly.Plot
 import au.id.tmm.plotly.model._

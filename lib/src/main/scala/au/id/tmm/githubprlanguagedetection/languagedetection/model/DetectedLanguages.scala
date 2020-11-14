@@ -1,4 +1,4 @@
-package au.id.tmm.githubprlanguagedetection.linguist.model
+package au.id.tmm.githubprlanguagedetection.languagedetection.model
 
 import au.id.tmm.collections.NonEmptyArraySeq
 
