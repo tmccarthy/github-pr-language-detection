@@ -1,12 +1,10 @@
 package au.id.tmm.githubprlanguagedetection.reporting
 
-import java.io.OutputStream
-import java.nio.file.{Files, Path}
-import java.security.{DigestOutputStream, MessageDigest}
 import java.time.Duration
 
 import au.id.tmm.collections.NonEmptyArraySeq
 import au.id.tmm.digest4s.digest.SHA256Digest
+import au.id.tmm.githubprlanguagedetection.common.DirectoryDigester
 import au.id.tmm.githubprlanguagedetection.git.BranchCloner
 import au.id.tmm.githubprlanguagedetection.github.PullRequestLister
 import au.id.tmm.githubprlanguagedetection.github.model.{PullRequest, RepositoryName}
@@ -23,12 +21,12 @@ import org.slf4j.{Logger, LoggerFactory}
 
 import scala.collection.immutable.ArraySeq
 import scala.concurrent.{duration => scaladuration}
-import scala.jdk.CollectionConverters.IteratorHasAsScala
 
 class ReportWriter(
   pullRequestLister: PullRequestLister,
   branchCloner: BranchCloner,
   languageDetector: LanguageDetector,
+  directoryDigester: DirectoryDigester,
 )(implicit
   timer: Timer[IO],
   concurrent: Concurrent[IO],
@@ -54,7 +52,7 @@ class ReportWriter(
                 (repositoryPath, jGit) =>
                   for {
                     detectedLanguages <- languageDetector.detectLanguages(repositoryPath)
-                    checksum          <- computeChecksumOfDirectory(repositoryPath)
+                    checksum          <- directoryDigester.digestFor(repositoryPath)
                   } yield (checksum, detectedLanguages)
               }
             } yield (checksum, detectedLanguages)
@@ -84,7 +82,7 @@ class ReportWriter(
 
   private def streamThatEmitsEvery[A](elements: ArraySeq[A], delay: Duration): fs2.Stream[IO, A] =
     fs2.Stream
-      .awakeEvery[IO](scaladuration.Duration(delay.toMillis, scaladuration.MILLISECONDS))
+      .fixedDelay[IO](scaladuration.Duration(delay.toMillis, scaladuration.MILLISECONDS))
       .zipRight(fs2.Stream.emits(elements))
 
   private def makeIntoReport(
@@ -98,25 +96,6 @@ class ReportWriter(
         case (pr, Left(e)) =>
           pr -> (PullRequestResult.Failure(e): PullRequestResult)
       }
-    }
-
-  private def computeChecksumOfDirectory(path: Path): IO[SHA256Digest] =
-    IO {
-
-      val digest: MessageDigest = MessageDigest.getInstance("SHA-256")
-
-      val digestOutputStream = new DigestOutputStream(OutputStream.nullOutputStream(), digest)
-
-      Files
-        .walk(path)
-        .filter(path => Files.isRegularFile(path))
-        .iterator
-        .asScala
-        .foreach { path =>
-          Files.copy(path, digestOutputStream)
-        }
-
-      SHA256Digest(new ArraySeq.ofByte(digest.digest()))
     }
 
 }

@@ -5,6 +5,7 @@ import java.time.ZoneId
 import java.time.format.DateTimeFormatter
 
 import au.id.tmm.collections.syntax.toIterableOps
+import au.id.tmm.githubprlanguagedetection.common.DirectoryDigester
 import au.id.tmm.githubprlanguagedetection.git.BranchCloner
 import au.id.tmm.githubprlanguagedetection.github.PullRequestLister
 import au.id.tmm.githubprlanguagedetection.linguist.LanguageDetector
@@ -29,8 +30,11 @@ object Main extends IOApp {
         cliConfig.performance.languageCheckTimeout,
         cliConfig.reportConfig.languagesToIgnoreIfPossible,
       )
+      directoryDigester = new DirectoryDigester(
+        numThreads = Runtime.getRuntime.availableProcessors() / cliConfig.performance.maxConcurrent,
+      )
 
-      reportWriter = new ReportWriter(pullRequestLister, branchCloner, languageDetector)
+      reportWriter = new ReportWriter(pullRequestLister, branchCloner, languageDetector, directoryDigester)
 
       report <- reportWriter.produceGitHubPrLanguageDetectionReport(
         cliConfig.performance.checkoutsPerMinute,
