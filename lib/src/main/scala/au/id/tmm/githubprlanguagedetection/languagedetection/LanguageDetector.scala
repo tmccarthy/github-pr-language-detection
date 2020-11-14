@@ -1,6 +1,6 @@
 package au.id.tmm.githubprlanguagedetection.languagedetection
 
-import java.nio.file.Path
+import java.nio.file.{Path, Paths}
 import java.time.Duration
 
 import au.id.tmm.collections.NonEmptyArraySeq
@@ -30,9 +30,10 @@ class LanguageDetector(
   private def runLinguistIn(path: Path): IO[String] =
     for {
       result <- RunProcess.run(
-        workingDirectory = IO.pure(path),
+        workingDirectory = IO(Paths.get(".")),
         timeout = timeout,
         "github-linguist",
+        path.toAbsolutePath.toString
       )
       result <-
         result
