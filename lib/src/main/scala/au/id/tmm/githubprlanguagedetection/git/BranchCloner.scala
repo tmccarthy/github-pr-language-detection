@@ -88,15 +88,6 @@ class BranchCloner(
       case Reference.Simple(refName) => IO(jGit.checkout().setName(refName).call()).as(())
       case Reference.GitHubPullRequestHead(prNumber) => {
         for {
-//          refs <- IO {
-//            val lsRemoteCommand = jGit.lsRemote().setRemote("origin").setHeads(true).setTags(false)
-//
-//            configureCredentials(lsRemoteCommand)
-//
-//            val refs = lsRemoteCommand.call()
-//
-//            refs
-//          }
           localBranchName  <- IO.pure(s"refs/remotes/origin/pull/$prNumber/head")
           remoteBranchName <- IO.pure(s"refs/pull/$prNumber/head")
           _ <- IO {
@@ -112,11 +103,6 @@ class BranchCloner(
             val advertisedRefs = fetchResult.getAdvertisedRefs
             advertisedRefs
           }
-//          _ <- IO {
-//            val refs = jGit.getRepository.getRefDatabase.getRefs
-//
-//            refs
-//          }
           _ <- IO(jGit.checkout().setName(localBranchName).call())
         } yield ()
       }
