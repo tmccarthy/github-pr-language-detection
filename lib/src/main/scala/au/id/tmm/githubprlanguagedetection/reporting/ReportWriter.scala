@@ -16,7 +16,7 @@ import au.id.tmm.githubprlanguagedetection.reporting.model.GitHubPrLanguageDetec
 import au.id.tmm.intime.std.syntax.all._
 import au.id.tmm.utilities.errors.{ExceptionOr, GenericException}
 import au.id.tmm.utilities.syntax.tuples.->
-import cats.effect.{Concurrent, IO, Timer}
+import cats.effect.{Concurrent, ContextShift, IO, Timer}
 import org.slf4j.{Logger, LoggerFactory}
 
 import scala.collection.immutable.ArraySeq
@@ -29,6 +29,7 @@ class ReportWriter(
   directoryDigester: DirectoryDigester,
 )(implicit
   timer: Timer[IO],
+  contextShift: ContextShift[IO],
   concurrent: Concurrent[IO],
 ) {
 
@@ -48,13 +49,10 @@ class ReportWriter(
             val resultIO: IO[(SHA256Digest, DetectedLanguages)] = for {
               cloneUri <- IO.pure(pullRequest.repository.cloneUris.https)
               refToClone = BranchCloner.Reference.GitHubPullRequestHead(pullRequest.number)
-              (checksum, detectedLanguages) <- branchCloner.useRepositoryAtRef(cloneUri, refToClone) {
-                (repositoryPath, jGit) =>
-                  for {
-                    detectedLanguages <- languageDetector.detectLanguages(repositoryPath)
-                    checksum          <- directoryDigester.digestFor(repositoryPath)
-                  } yield (checksum, detectedLanguages)
-              }
+              (checksum, detectedLanguages) <- branchCloner
+                .useRepositoryAtRef(cloneUri, refToClone) { (repositoryPath, jGit) =>
+                  directoryDigester.digestFor(repositoryPath) parProduct languageDetector.detectLanguages(repositoryPath)
+                }
             } yield (checksum, detectedLanguages)
 
             resultIO.attempt.flatMap {
