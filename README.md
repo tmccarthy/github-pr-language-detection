@@ -9,6 +9,8 @@ Requires that `github-linguist` is installed and available on the `PATH` (see [i
 
 ## Usage
 
+### Running on the command line
+
 The project is configured using a json file of the following format:
 
 ```json
@@ -43,4 +45,10 @@ Provide the path to the config file to the `cli/run` SBT task:
 ./sbt "cli/run runconfig.json"
 ```
 
+### Use as a library
 
+Add the following to your `build.sbt` file:
+
+```scala
+libraryDependencies += "au.id.tmm.github-pr-language-detection" %% "github-pr-language-detection-lib" % "0.0.1"
+```
