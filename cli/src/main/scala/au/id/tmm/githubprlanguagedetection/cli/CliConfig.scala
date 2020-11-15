@@ -3,7 +3,7 @@ package au.id.tmm.githubprlanguagedetection.cli
 import java.net.URI
 import java.nio.charset.StandardCharsets
 import java.nio.file.{Files, Path}
-import java.time.{Duration, LocalDate, Period, ZoneId}
+import java.time.{Duration, ZoneId}
 
 import au.id.tmm.githubprlanguagedetection.cli.CliConfig.PerformanceConfig
 import au.id.tmm.githubprlanguagedetection.github.configuration.{GitHubConfiguration, GitHubCredentials, GitHubInstance}
@@ -42,19 +42,13 @@ object CliConfig {
   final case class ReportConfig(
     outputPath: String,
     timeZone: Option[ZoneId],
-    temporalReportBinSize: Period,
-    temporalReportStartDate: LocalDate,
-    numLanguagesToBreakOut: Option[Int],
     languagesToIgnoreIfPossible: Set[Language.Name],
   )
 
   object ReportConfig {
-    implicit val decoder: Decoder[ReportConfig] = Decoder.forProduct6(
+    implicit val decoder: Decoder[ReportConfig] = Decoder.forProduct3(
       "output",
       "timeZone",
-      "temporalReportBinSize",
-      "temporalReportStartDate",
-      "numLanguagesToBreakOut",
       "languagesToIgnoreIfPossible",
     )(ReportConfig.apply)
   }

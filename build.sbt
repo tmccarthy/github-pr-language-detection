@@ -36,7 +36,6 @@ lazy val lib = project
     libraryDependencies += "org.eclipse.jgit"                 % "org.eclipse.jgit"           % "5.9.0.202009080501-r",
     libraryDependencies += "org.kohsuke"                      % "github-api"                 % "1.116",
     libraryDependencies += "org.slf4j"                        % "slf4j-api"                  % "1.7.30",
-    libraryDependencies += "org.slf4j"                        % "slf4j-simple"               % "1.7.30" % Runtime,
   )
 
 lazy val cli = project
