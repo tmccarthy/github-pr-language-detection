@@ -50,5 +50,5 @@ Provide the path to the config file to the `cli/run` SBT task:
 Add the following to your `build.sbt` file:
 
 ```scala
-libraryDependencies += "au.id.tmm.github-pr-language-detection" %% "github-pr-language-detection-lib" % "0.0.1"
+libraryDependencies += "au.id.tmm.github-pr-language-detection" %% "github-pr-language-detection-lib" % "0.0.2"
 ```
